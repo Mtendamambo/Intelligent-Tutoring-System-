@@ -1,39 +1,40 @@
-# ZimPrimary ITS - Python Setup Guide
+# ZimPrimary Intelligent Tutoring System (ITS)
 
-This project has been converted to Python for easier local use and configuration.
+An AI-powered Intelligent Tutoring System specifically designed for Zimbabwean Primary School learners (Grade 3-7).
 
-## Prerequisites
-1. Install Python from [python.org](https://www.python.org/)
-2. Get a Gemini API Key from [Google AI Studio](https://aistudio.google.com/)
+## Features
+- **Adaptive AI Tutoring:** Uses Google Gemini to generate custom questions based on the student's current level.
+- **Local Context:** Math and Literacy questions are contextualized to Zimbabwe (Harare, Bulawayo, ZiG currency, local folklore).
+- **Progressive Web App (PWA):** Installable on Windows, macOS, and Android/iOS.
+- **Gamified Learning:** Earn points, level up, and unlock awards.
 
-## Installation
+## How to Run Locally on your PC
 
-1. Download the ZIP file of this project.
-2. Open your terminal (CMD on Windows).
-3. Navigate to the project folder.
-4. Install the required libraries:
+### Prerequisites
+1. Install **Node.js** (Version 18 or later) from [nodejs.org](https://nodejs.org/).
+2. A **Gemini API Key** from [Google AI Studio](https://aistudio.google.com/).
+
+### Setup Instructions
+1. Download or clone this repository to a folder on your computer.
+2. Open your terminal (Command Prompt or PowerShell) in that folder.
+3. Install the dependencies:
    ```bash
-   pip install -r requirements.txt
+   npm install
    ```
+4. Create a `.env` file in the root directory and add your API key:
+   ```env
+   GEMINI_API_KEY="your_api_key_here"
+   ```
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
+6. Open your browser to `http://localhost:3000`.
 
-## Configuration
-Create a file named `.env` in the root folder and add your API key:
-```env
-GEMINI_API_KEY=your_actual_key_here
+## Deployment
+This app is ready to be deployed to platforms like Cloud Run, Vercel, or Netlify.
+To build for production:
+```bash
+npm run build
 ```
-
-## Running the Application
-
-1. Start the Python Backend:
-   ```bash
-   python app.py
-   ```
-   *The server will start on http://127.0.0.1:5000*
-
-2. Open the frontend:
-   - If you want to use the React version, you will need to run `npm install` and `npm run dev`.
-   - The React frontend is configured to talk to the backend.
-
-## Why Python?
-- **SQLite Database**: Unlike the MySQL version, this Python version uses SQLite, which is a single file (`zim_primary_its.db`). You don't need to install WAMP or any database server.
-- **Readable Logic**: The AI generation and student tracking are now in simple Python scripts (`app.py`, `gemini_service.py`).
+The static files will be in the `dist/` folder.

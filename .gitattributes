@@ -1,5 +1,0 @@
-src/** linguist-vendored
-dist/** linguist-vendored
-node_modules/** linguist-vendored
-package-lock.json linguist-vendored
-yarn.lock linguist-vendored

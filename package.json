@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "python3 app.py",
-    "start": "python3 app.py",
-    "build": "vite build",
+    "dev": "tsx server.ts",
+    "start": "node dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:vite",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
