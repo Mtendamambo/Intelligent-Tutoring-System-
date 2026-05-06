@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Book, Upload, Trash2, Loader2, Plus, X } from 'lucide-react';
+import { Book, Upload, Trash2, Loader2, Plus, X, Search, Filter } from 'lucide-react';
 import { api } from '../lib/api';
 import { Subject } from '../types';
 
@@ -21,6 +21,9 @@ export default function ResourceHub() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSubject, setFilterSubject] = useState<Subject | 'All'>('All');
+  const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
   const [newResource, setNewResource] = useState({
     title: '',
     content: '',
@@ -35,9 +38,10 @@ export default function ResourceHub() {
   const fetchResources = async () => {
     try {
       const data = await api.getResources();
-      setResources(data);
+      setResources(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch resources", err);
+      setResources([]);
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +69,14 @@ export default function ResourceHub() {
     }
   };
 
+  const filteredResources = resources.filter(res => {
+    const matchesSearch = res.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          res.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSubject = filterSubject === 'All' || res.subject === filterSubject;
+    const matchesGrade = filterGrade === 'All' || res.grade === filterGrade;
+    return matchesSearch && matchesSubject && matchesGrade;
+  });
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-8">
@@ -81,20 +93,62 @@ export default function ResourceHub() {
         </button>
       </div>
 
+      {/* Search and Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="md:col-span-2 relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text"
+            placeholder="Search by title or content..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white border-2 border-slate-100 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-blue-500 transition-all shadow-sm"
+          />
+        </div>
+        <div>
+          <div className="relative">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <select
+              value={filterSubject}
+              onChange={(e) => setFilterSubject(e.target.value as any)}
+              className="w-full bg-white border-2 border-slate-100 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 transition-all shadow-sm appearance-none text-sm font-medium"
+            >
+              <option value="All">All Subjects</option>
+              <option value="Indigenous Languages">Indigenous Languages</option>
+              <option value="Mathematics">Mathematics</option>
+              <option value="Social Science">Social Science</option>
+              <option value="Agriculture, Science and Technology">Agric & Tech</option>
+              <option value="Physical Education">Physical Ed</option>
+              <option value="English Language">English Language</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <select
+            value={filterGrade}
+            onChange={(e) => setFilterGrade(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
+            className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-all shadow-sm text-sm font-medium"
+          >
+            <option value="All">All Grades</option>
+            {[3, 4, 5, 6, 7].map(g => <option key={g} value={g}>Grade {g}</option>)}
+          </select>
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin text-blue-500" size={40} />
         </div>
       ) : (
         <div className="grid gap-4">
-          {resources.length === 0 && (
+          {filteredResources.length === 0 && (
             <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
               <Book size={48} className="mx-auto text-slate-200 mb-4" />
-              <p className="text-slate-400 font-medium">No materials uploaded yet.</p>
+              <p className="text-slate-400 font-medium">No materials found matching your search.</p>
             </div>
           )}
-          {resources.map((res) => (
-            <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-start justify-between group">
+          {filteredResources.map((res) => (
+            <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-start justify-between group transform transition-all hover:scale-[1.01] hover:shadow-md">
               <div className="flex items-start space-x-4">
                 <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
                   <Book size={24} />

@@ -14,7 +14,15 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Cell
+  Cell,
+  LineChart,
+  Line,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Legend
 } from 'recharts';
 
 interface StudentSummary {
@@ -42,6 +50,8 @@ export default function TeacherDashboard() {
   const [logs, setLogs] = useState<PerformanceLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
+  const [sortKey, setSortKey] = useState<'name' | 'totalPoints' | 'streak'>('totalPoints');
 
   useEffect(() => {
     fetchData();
@@ -64,12 +74,19 @@ export default function TeacherDashboard() {
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students
+    .filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesGrade = filterGrade === 'All' || s.grade === filterGrade;
+      return matchesSearch && matchesGrade;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      return b[sortKey] - a[sortKey];
+    });
 
-  const getAvgLevel = (subject: string) => {
-    if (students.length === 0) return 0;
+  const getAvgLevel = (subject: string): string => {
+    if (students.length === 0) return "0";
     return (students.reduce((acc, s) => acc + (s.level[subject] || 1), 0) / students.length).toFixed(1);
   };
 
@@ -89,7 +106,64 @@ export default function TeacherDashboard() {
     { name: 'Grade 7', count: students.filter(s => s.grade === 7).length },
   ];
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+  // Process Trend Data
+  const getTrendData = () => {
+    const dailyAverage: Record<string, { total: number, sum: number }> = {};
+    logs.forEach(log => {
+      const date = new Date(log.timestamp).toLocaleDateString();
+      if (!dailyAverage[date]) dailyAverage[date] = { total: 0, sum: 0 };
+      dailyAverage[date].sum += (log.correct / log.total) * 100;
+      dailyAverage[date].total += 1;
+    });
+    
+    return Object.entries(dailyAverage)
+      .map(([date, data]) => ({
+        date,
+        average: Math.round(data.sum / data.total)
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-7); // Last 7 days
+  };
+
+  // Process Subject Proficiency (Radar)
+  const getSubjectProficiency = () => {
+    const subjects = [
+      'Indigenous Languages', 
+      'Mathematics', 
+      'Social Science', 
+      'Agriculture, Science and Technology', 
+      'Physical Education', 
+      'English Language'
+    ];
+    return subjects.map(subject => ({
+      subject: subject.split(' ').slice(0, 2).join(' '), // Shorten names
+      fullSubject: subject,
+      value: parseFloat(getAvgLevel(subject))
+    }));
+  };
+
+  // Process Difficulty Map
+  const getDifficultyData = () => {
+    const subjectStats: Record<string, { total: number, sum: number }> = {};
+    logs.forEach(log => {
+      if (!subjectStats[log.subject]) subjectStats[log.subject] = { total: 0, sum: 0 };
+      subjectStats[log.subject].sum += (log.correct / log.total);
+      subjectStats[log.subject].total += 1;
+    });
+
+    return Object.entries(subjectStats)
+      .map(([subject, data]) => ({
+        subject,
+        difficulty: 100 - Math.round((data.sum / data.total) * 100)
+      }))
+      .sort((a, b) => b.difficulty - a.difficulty);
+  };
+
+  const trendData = getTrendData();
+  const proficiencyData = getSubjectProficiency();
+  const difficultyData = getDifficultyData();
 
   if (isLoading) {
     return (
@@ -107,18 +181,8 @@ export default function TeacherDashboard() {
           <h1 className="text-3xl font-heading font-extrabold text-slate-800 tracking-tight">Teacher Dashboard</h1>
           <p className="text-slate-500 italic">Monitoring learner progress and class performance.</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search pupils..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="bg-white border-2 border-slate-100 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors w-64"
-            />
-          </div>
-          <button className="bg-white border-2 border-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center space-x-2 hover:bg-slate-50 transition-colors">
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="bg-white border-2 border-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center space-x-2 hover:bg-slate-50 transition-colors shadow-sm">
             <Download size={18} />
             <span>Export CSV</span>
           </button>
@@ -169,7 +233,92 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Class Distribution Chart */}
+        {/* Performance Trend */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex items-center space-x-2 mb-6">
+            <TrendingUp size={20} className="text-blue-500" />
+            <h2 className="text-lg font-bold text-slate-800">Class Performance Trend</h2>
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} unit="%" />
+                <Tooltip 
+                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="average" 
+                  stroke="#3b82f6" 
+                  strokeWidth={4} 
+                  dot={{ r: 6, fill: '#3b82f6', strokeWidth: 3, stroke: '#fff' }}
+                  activeDot={{ r: 8 }}
+                  name="Avg Score"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Subject Strength Radar */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex items-center space-x-2 mb-6">
+            <BarChart3 size={20} className="text-blue-500" />
+            <h2 className="text-lg font-bold text-slate-800">Subject Proficiency</h2>
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={proficiencyData}>
+                <PolarGrid stroke="#f1f5f9" />
+                <PolarAngleAxis dataKey="subject" tick={{fontSize: 9, fill: '#64748b', fontWeight: 600}} />
+                <PolarRadiusAxis angle={30} domain={[0, 10]} axisLine={false} tick={false} />
+                <Radar
+                  name="Proficiency"
+                  dataKey="value"
+                  stroke="#8b5cf6"
+                  fill="#8b5cf6"
+                  fillOpacity={0.5}
+                />
+                <Tooltip 
+                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Difficulty Insights & Distribution */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex items-center space-x-2 mb-6">
+            <Clock size={20} className="text-red-500" />
+            <h2 className="text-lg font-bold text-slate-800">Difficulty Map</h2>
+          </div>
+          <div className="space-y-4">
+            {difficultyData.map((item, idx) => (
+              <div key={item.subject}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-600 truncate mr-2">{item.subject}</span>
+                  <span className="text-[10px] font-black text-slate-400">{item.difficulty}% Struggle</span>
+                </div>
+                <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      item.difficulty > 60 ? 'bg-red-500' : item.difficulty > 30 ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`} 
+                    style={{ width: `${item.difficulty}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {difficultyData.length === 0 && (
+              <p className="text-center text-slate-400 text-sm py-10">No struggle data yet.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Grade Distribution Chart */}
         <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <div className="flex items-center space-x-2 mb-6">
             <BarChart3 size={20} className="text-blue-500" />
@@ -197,14 +346,64 @@ export default function TeacherDashboard() {
 
         {/* Student List Table */}
         <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-slate-50 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Users size={20} className="text-blue-500" />
-              <h2 className="text-lg font-bold text-slate-800">Student Progress</h2>
+          <div className="p-6 border-b border-slate-50">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-2">
+                <Users size={20} className="text-blue-500" />
+                <h2 className="text-lg font-bold text-slate-800">Learner Roster</h2>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input 
+                    type="text" 
+                    placeholder="Find student..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="bg-slate-50 border-none rounded-lg pl-9 pr-4 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none w-40"
+                  />
+                </div>
+                <select
+                  value={filterGrade}
+                  onChange={(e) => setFilterGrade(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
+                  className="bg-slate-50 border-none px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 outline-none cursor-pointer"
+                >
+                  <option value="All">All Grades</option>
+                  {[3, 4, 5, 6, 7].map(g => <option key={g} value={g}>Gr {g}</option>)}
+                </select>
+              </div>
             </div>
-            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-none">
-              Ranked by XP
-            </span>
+
+            <div className="flex items-center space-x-4">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sort By:</span>
+              <div className="flex bg-slate-50 p-1 rounded-xl">
+                <button 
+                  onClick={() => setSortKey('totalPoints')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                    sortKey === 'totalPoints' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  XP Points
+                </button>
+                <button 
+                  onClick={() => setSortKey('streak')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                    sortKey === 'streak' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Streak
+                </button>
+                <button 
+                  onClick={() => setSortKey('name')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                    sortKey === 'name' ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Name
+                </button>
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -214,6 +413,7 @@ export default function TeacherDashboard() {
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Grade</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Levels (Avg)</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Points</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Streak</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Last Seen</th>
                 </tr>
               </thead>
@@ -236,6 +436,10 @@ export default function TeacherDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-black text-slate-800 tracking-tight">{s.totalPoints} XP</td>
+                    <td className="px-6 py-4 font-black text-orange-500 flex items-center space-x-1">
+                      <span>{s.streak}</span>
+                      <span className="text-[10px] uppercase">Days</span>
+                    </td>
                     <td className="px-6 py-4 text-xs text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}

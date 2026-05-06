@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2, History as HistoryIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2, History as HistoryIcon, Settings } from 'lucide-react';
 import { Question, Subject, StudentProfile } from '../types';
 import { generateQuestion, getFeedback } from '../lib/gemini';
 import { api } from '../lib/api';
@@ -13,23 +13,38 @@ interface LearningSessionProps {
 }
 
 export default function LearningSession({ subject, profile, onSessionComplete, onExit }: LearningSessionProps) {
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [count, setCount] = useState(1);
   const [score, setScore] = useState(0);
-  const maxQuestions = 5;
+  const [showSettings, setShowSettings] = useState(false);
+  const [sessionMaxQuestions, setSessionMaxQuestions] = useState(5);
+  const [sessionDifficulty, setSessionDifficulty] = useState(profile.level[subject] || 1);
 
-  useEffect(() => {
-    fetchNextQuestion();
-  }, []);
+  const subjectTopics: Record<Subject, string[]> = {
+    'Indigenous Languages': ['Shona/Ndebele Phrases', 'Traditional Proverbs (Tsumo)', 'Local Riddles (Zvirahwe)', 'Grammar & Spoken Word'],
+    'Mathematics': ['ZiG Currency & Market Math', 'Farming Fractions', 'Geometry in Patterns', 'Numbers & Operations'],
+    'Social Science': ['Great Zimbabwe & Heritage', 'Zimbabwean History', 'Citizenship & Rights', 'Geography of our Provinces'],
+    'Agriculture, Science and Technology': ['Local Soil Types', 'Indigenous Plants & Crops', 'Animal Husbandry', 'Modern Tools & Tech'],
+    'Physical Education': ['Traditional Games (Nhodo)', 'Health & Nutrition', 'Sportsmanship', 'Athletics & Rules'],
+    'English Language': ['Grammar & Punctuation', 'Reading Comprehension', 'Story Writing Tips', 'Vocabulary Building']
+  };
 
-  const fetchNextQuestion = async () => {
+  const startSession = async (topic: string) => {
+    setSelectedTopic(topic);
     setIsLoading(true);
-    const q = await generateQuestion(subject, profile.grade, profile.level[subject]);
+    await fetchNextQuestion(topic);
+  };
+
+  const fetchNextQuestion = async (topic?: string) => {
+    const t = topic || selectedTopic || 'General';
+    setIsLoading(true);
+    const q = await generateQuestion(subject, profile.grade, sessionDifficulty, t);
     setQuestion(q);
     setSelectedAnswer(null);
     setIsSubmitted(false);
@@ -50,15 +65,139 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
   };
 
   const handleNext = () => {
-    if (count >= maxQuestions) {
-      onSessionComplete({ correct: score + (isCorrect ? 1 : 0), total: maxQuestions });
+    if (count >= sessionMaxQuestions) {
+      onSessionComplete({ correct: score + (isCorrect ? 1 : 0), total: sessionMaxQuestions });
     } else {
       setCount(c => c + 1);
       fetchNextQuestion();
     }
   };
 
-  if (isLoading && !question) {
+  if (!selectedTopic) {
+    return (
+      <div className="max-w-2xl mx-auto p-4 space-y-8 relative">
+        <div className="flex justify-between items-start">
+          <div className="flex-1 text-center space-y-4 py-10">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-blue-50 text-blue-600 mb-4">
+              <Sparkles size={40} />
+            </div>
+            <h2 className="text-3xl font-heading font-extrabold text-slate-800">Choose a Focus</h2>
+            <p className="text-slate-500 italic">What part of {subject} would you like to master today?</p>
+          </div>
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-3 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-100 transition-all shadow-sm"
+            title="Session Settings"
+          >
+            <Settings size={20} />
+          </button>
+        </div>
+
+        {/* Settings Modal */}
+        <AnimatePresence>
+          {showSettings && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowSettings(false)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl space-y-8"
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Session Settings</h3>
+                  <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+                    <XCircle size={24} />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Questions</label>
+                      <span className="text-lg font-bold text-blue-600">{sessionMaxQuestions}</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="3" 
+                      max="15" 
+                      step="1"
+                      value={sessionMaxQuestions}
+                      onChange={(e) => setSessionMaxQuestions(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex justify-between text-[10px] font-bold text-slate-300">
+                      <span>3 Questions</span>
+                      <span>15 Questions</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Difficulty</label>
+                      <span className="text-lg font-bold text-emerald-600">Level {sessionDifficulty}</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="10" 
+                      step="1"
+                      value={sessionDifficulty}
+                      onChange={(e) => setSessionDifficulty(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                    <div className="flex justify-between text-[10px] font-bold text-slate-300">
+                      <span>Beginner</span>
+                      <span>Expert</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="w-full bg-slate-800 text-white p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 transition-colors"
+                >
+                  Save Settings
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {subjectTopics[subject].map((topic) => (
+            <button
+              key={topic}
+              onClick={() => startSession(topic)}
+              className="bg-white border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50/50 p-6 rounded-3xl text-left transition-all group"
+            >
+              <h3 className="font-bold text-slate-700 group-hover:text-blue-700">{topic}</h3>
+              <p className="text-xs text-slate-400 mt-1">Start specialized quiz</p>
+            </button>
+          ))}
+          <button
+            onClick={() => startSession('General')}
+            className="sm:col-span-2 bg-slate-50 border-2 border-dashed border-slate-200 hover:border-slate-400 p-6 rounded-3xl text-center transition-all"
+          >
+            <h3 className="font-bold text-slate-400">Random Mix</h3>
+            <p className="text-[10px] uppercase font-black tracking-widest mt-1">A bit of everything from the grade {profile.grade} syllabus</p>
+          </button>
+        </div>
+        
+        <div className="text-center mt-8">
+          <button onClick={onExit} className="text-sm font-bold text-slate-400 hover:text-slate-600 underline">Go Back home</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
@@ -72,13 +211,13 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
       <div className="flex justify-between items-center px-2">
         <div className="space-y-1">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{subject} Quest</span>
-          <h2 className="text-sm font-bold text-slate-800">Challenge {count} of {maxQuestions}</h2>
+          <h2 className="text-sm font-bold text-slate-800">Challenge {count} of {sessionMaxQuestions}</h2>
         </div>
         <button onClick={onExit} className="text-xs font-bold text-slate-400 hover:text-slate-600">Quit</button>
       </div>
 
       <div className="bg-slate-200 h-2 rounded-full overflow-hidden">
-        <motion.div animate={{ width: `${(count / maxQuestions) * 100}%` }} className="h-full bg-blue-500" />
+        <motion.div animate={{ width: `${(count / sessionMaxQuestions) * 100}%` }} className="h-full bg-blue-500" />
       </div>
 
       <AnimatePresence mode="wait">
@@ -151,7 +290,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
                 onClick={handleNext}
                 className="w-full bg-blue-600 text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center space-x-2"
               >
-                <span>{count === maxQuestions ? 'Finish' : 'Next Challenge'}</span>
+                <span>{count === sessionMaxQuestions ? 'Finish' : 'Next Challenge'}</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
             )}

@@ -10,7 +10,7 @@ import { api } from "./api";
 // Standard client-side Gemini initialization for AI Studio Applets
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export async function generateQuestion(subject: Subject, grade: number, level: number): Promise<Question> {
+export async function generateQuestion(subject: Subject, grade: number, level: number, topic?: string): Promise<Question> {
   // Fetch relevant local resources to use as context
   let context = "";
   try {
@@ -22,6 +22,7 @@ export async function generateQuestion(subject: Subject, grade: number, level: n
   const prompt = `
     You are an expert Zimbabwean Primary School tutor. 
     Generate a ${subject} question for a Grade ${grade} student at difficulty Level ${level}/10.
+    ${topic ? `SPECIFIC TOPIC: ${topic}` : ""}
     
     ${context ? `Use the following reference material to base your question on:\n---START REFERENCE---\n${context}\n---END REFERENCE---` : ""}
     
@@ -33,6 +34,7 @@ export async function generateQuestion(subject: Subject, grade: number, level: n
     - For Social Science: mention Zimbabwean history, monuments (Great Zimbabwe), or patriotic concepts.
     - For Physical Education: mention local sports or traditional games like 'nhodo' or 'tsoro'.
     - For English Language: focus on grammar and reading comprehension suitable for Grade ${grade}.
+    - The topic is ${topic || "General"}.
     - Return a valid JSON object matching the Question interface.
   `;
 
