@@ -102,7 +102,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     onClick={() => setRole(r)}
                     className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       role === r 
-                        ? 'bg-white text-blue-600 shadow-sm' 
+                        ? 'bg-zim-gradient text-white shadow-sm' 
                         : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
@@ -113,14 +113,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             )}
 
             <div className="space-y-4">
-              <div>
+              <div className="text-left">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Username</label>
                 <div className="relative">
                   <LogIn className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input
                     type="text"
                     required
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 font-medium"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all placeholder:text-slate-300 font-medium"
                     placeholder="Enter your username"
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -130,18 +130,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
               {!isLogin && role === 'student' && (
                 <>
-                  <div>
+                  <div className="text-left">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Full Name</label>
                     <input
                       type="text"
                       required
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 font-medium"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all placeholder:text-slate-300 font-medium"
                       placeholder="Your name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
-                  <div>
+                  <div className="text-left">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Grade</label>
                     <div className="grid grid-cols-7 gap-1">
                       {[1, 2, 3, 4, 5, 6, 7].map(g => (
@@ -149,7 +149,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                           key={g}
                           type="button"
                           onClick={() => setFormData({...formData, grade: g})}
-                          className={`py-2 rounded-xl text-xs font-bold ${formData.grade === g ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                          className={`py-2 rounded-xl text-xs font-bold transition-all ${formData.grade === g ? 'bg-zim-gold text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
                         >
                           {g}
                         </button>
@@ -159,14 +159,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 </>
               )}
 
-              <div>
+              <div className="text-left">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Password</label>
                 <div className="relative">
                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input
                     type="password"
                     required
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 font-medium"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all placeholder:text-slate-300 font-medium"
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -184,12 +184,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-zim-green text-white rounded-2xl py-4 font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-zim-green/20"
+              className="w-full bg-zim-gradient text-white rounded-2xl py-4 font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-zim-gold/10 border-2 border-white/20"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : (
                 <>
                   <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-                  <ArrowRight size={18} />
+                  <ArrowRight size={20} />
                 </>
               )}
             </button>
@@ -198,7 +198,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors"
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-zim-red transition-colors"
               >
                 {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
               </button>

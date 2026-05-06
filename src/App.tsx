@@ -149,9 +149,25 @@ export default function App() {
 
   // STUDENT VIEW
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-zim-gold/20">
       <main className="flex-1 max-w-[1920px] mx-auto w-full py-4 md:py-8">
-        {activeTab === 'home' && profile && (
+        {!profile && user.role === 'student' ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center space-y-8 min-h-[60vh]">
+            <div className="w-24 h-24 bg-zim-gradient rounded-[32px] flex items-center justify-center text-white shadow-2xl shadow-zim-gold/20 border-4 border-white">
+              <GraduationCap size={48} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Profile Not Found</h1>
+              <p className="text-slate-500 max-w-sm mt-2 font-medium">We couldn't synchronize your learner data. Please try registering again or contact a teacher.</p>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="px-8 py-4 bg-zim-red text-white rounded-2xl font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-zim-red/20"
+            >
+              Sign Out & Retry
+            </button>
+          </div>
+        ) : activeTab === 'home' && profile && (
           <StudentHome 
             profile={profile} 
             achievements={achievements}

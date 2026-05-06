@@ -124,7 +124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 placeholder="Search accounts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-medium text-sm"
+                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 focus:ring-4 focus:ring-zim-gold/10 focus:border-zim-gold outline-none transition-all font-medium text-sm"
               />
             </div>
             
@@ -134,7 +134,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   key={r}
                   onClick={() => setSelectedRole(r as any)}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    selectedRole === r ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                    selectedRole === r ? 'bg-white text-zim-red shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   {r}
@@ -168,10 +168,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <select 
                         value={u.role}
                         onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                        className={`text-[10px] font-black uppercase tracking-widest py-1.5 px-3 rounded-lg border-none focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer bg-opacity-10 ${
-                          u.role === 'admin' ? 'bg-indigo-600 text-indigo-600' : 
-                          u.role === 'teacher' ? 'bg-amber-600 text-amber-600' : 
-                          'bg-blue-600 text-blue-600'
+                        className={`text-[10px] font-black uppercase tracking-widest py-1.5 px-3 rounded-lg border-none focus:ring-2 focus:ring-zim-gold/20 outline-none cursor-pointer bg-opacity-10 ${
+                          u.role === 'admin' ? 'bg-zim-red text-zim-red' : 
+                          u.role === 'teacher' ? 'bg-zim-gold text-zim-gold contrast-125 brightness-75' : 
+                          'bg-zim-green text-zim-green'
                         }`}
                       >
                         <option value="student">Student</option>

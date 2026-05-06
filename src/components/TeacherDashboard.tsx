@@ -312,12 +312,12 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     <div className="max-w-[1920px] mx-auto p-4 md:p-8 space-y-8 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div className="flex items-center space-x-4">
-          <div className="w-14 h-14 bg-zim-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-zim-green/20">
+          <div className="w-14 h-14 bg-zim-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-zim-green/20 border-2 border-white/50">
             <BarChart3 className="text-white" size={28} />
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>
-            <p className="text-[10px] font-black uppercase tracking-widest text-zim-green">Monitoring learner progress and performance</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zim-green animate-pulse">Live Monitoring & Analytics</p>
           </div>
         </div>
         

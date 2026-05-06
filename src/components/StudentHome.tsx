@@ -25,7 +25,10 @@ interface StudentHomeProps {
 
 export default function StudentHome({ profile, achievements, onStartSession, onLogout, onOpenResources }: StudentHomeProps) {
   return (
-    <div className="max-w-[1400px] mx-auto p-4 space-y-8">
+    <div className="max-w-[1400px] mx-auto p-4 space-y-8 relative">
+      {/* Flag accent background */}
+      <div className="absolute top-0 right-0 w-full h-[300px] bg-zim-soft -z-10 blur-3xl opacity-50" />
+      
       {/* Header / Stats */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -33,26 +36,29 @@ export default function StudentHome({ profile, achievements, onStartSession, onL
         className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0"
       >
         <div className="flex items-center space-x-6">
-          <div className="w-20 h-20 bg-zim-gradient rounded-[24px] flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-zim-gold/30">
+          <div className="w-20 h-20 bg-zim-gradient rounded-[24px] flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-zim-gold/30 border-4 border-white">
             {profile.name.charAt(0)}
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mhoro, {profile.name}!</h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center">
+              Mhoro, {profile.name}!
+              <span className="ml-3 text-2xl">🇿🇼</span>
+            </h1>
             <div className="flex items-center space-x-3 mt-1">
-              <span className="px-3 py-1 bg-zim-green/10 text-zim-green rounded-full text-[10px] font-black uppercase tracking-widest">Grade {profile.grade}</span>
-              <span className="px-3 py-1 bg-slate-50 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">ZimPrimary Catalyst</span>
+              <span className="px-3 py-1 bg-zim-gold/10 text-zim-gold contrast-125 brightness-75 rounded-full text-[10px] font-black uppercase tracking-widest">Grade {profile.grade}</span>
+              <span className="px-3 py-1 bg-zim-green/10 text-zim-green rounded-full text-[10px] font-black uppercase tracking-widest">ZimPrimary Scholar</span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex space-x-4">
-            <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 text-center">
+            <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 text-center hover:scale-105 transition-transform">
               <span className="block text-xl font-black text-slate-800">{profile.totalPoints}</span>
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Total Points</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Points earned</span>
             </div>
-            <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 text-center">
-              <div className="flex items-center justify-center text-orange-500 space-x-1">
+            <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 text-center hover:scale-105 transition-transform">
+              <div className="flex items-center justify-center text-zim-gold space-x-1">
                 <Star className="w-4 h-4 fill-current" />
                 <span className="block text-xl font-black text-slate-800 tracking-tighter">{profile.streak}</span>
               </div>
@@ -63,14 +69,14 @@ export default function StudentHome({ profile, achievements, onStartSession, onL
           <div className="flex items-center space-x-3">
             <button 
               onClick={onOpenResources}
-              className="px-6 py-3 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 flex items-center"
+              className="px-6 py-3 bg-zim-green/5 text-zim-green rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zim-green hover:text-white transition-all border border-zim-green/10 flex items-center"
             >
               <BookOpen size={16} className="mr-2" />
               Resources
             </button>
             <button 
               onClick={onLogout}
-              className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
+              className="px-6 py-3 bg-zim-red text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-xl shadow-zim-red/20"
             >
               Logout
             </button>
