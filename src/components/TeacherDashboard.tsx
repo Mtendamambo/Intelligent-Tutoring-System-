@@ -53,10 +53,12 @@ export default function TeacherDashboard() {
         api.getTeacherStudents(),
         api.getTeacherLogs()
       ]);
-      setStudents(studentData);
-      setLogs(logData);
+      setStudents(Array.isArray(studentData) ? studentData : []);
+      setLogs(Array.isArray(logData) ? logData : []);
     } catch (err) {
       console.error("Failed to fetch teacher data", err);
+      setStudents([]);
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
