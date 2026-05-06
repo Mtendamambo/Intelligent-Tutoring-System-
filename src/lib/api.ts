@@ -59,5 +59,29 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subject, correct, total }),
     });
+  },
+
+  generateQuestion: async (subject: Subject, grade: number, level: number): Promise<Question> => {
+    const res = await fetch(`${API_BASE}/ai/generate-question`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, grade, level }),
+    });
+    return await res.json();
+  },
+
+  getFeedback: async (question: Question, studentAnswer: string, isCorrect: boolean): Promise<string> => {
+    const res = await fetch(`${API_BASE}/ai/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question_text: question.text,
+        student_answer: studentAnswer,
+        correct_answer: question.correctAnswer,
+        is_correct: isCorrect
+      }),
+    });
+    const data = await res.json();
+    return data.feedback;
   }
 };

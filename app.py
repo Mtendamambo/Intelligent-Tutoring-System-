@@ -70,6 +70,26 @@ def log_performance(student_id):
     conn.close()
     return jsonify({"success": True})
 
+@app.route('/api/ai/generate-question', methods=['POST'])
+def ai_generate():
+    data = request.json
+    subject = data.get('subject')
+    grade = data.get('grade')
+    level = data.get('level')
+    question = gemini_service.generate_question(subject, grade, level)
+    return jsonify(question)
+
+@app.route('/api/ai/feedback', methods=['POST'])
+def ai_feedback():
+    data = request.json
+    feedback = gemini_service.get_feedback(
+        data.get('question_text'),
+        data.get('student_answer'),
+        data.get('correct_answer'),
+        data.get('is_correct')
+    )
+    return jsonify({"feedback": feedback})
+
 # Serve React App (if built)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

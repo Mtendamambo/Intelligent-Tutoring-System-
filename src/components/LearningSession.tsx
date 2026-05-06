@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2, History as HistoryIcon } from 'lucide-react';
 import { Question, Subject, StudentProfile } from '../types';
-import { generateQuestion, getFeedback } from '../lib/gemini';
+import { api } from '../lib/api';
 
 interface LearningSessionProps {
   subject: Subject;
@@ -28,7 +28,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
 
   const fetchNextQuestion = async () => {
     setIsLoading(true);
-    const q = await generateQuestion(subject, profile.grade, profile.level[subject]);
+    const q = await api.generateQuestion(subject, profile.grade, profile.level[subject]);
     setQuestion(q);
     setSelectedAnswer(null);
     setIsSubmitted(false);
@@ -44,7 +44,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
     setIsSubmitted(true);
     if (correct) setScore(s => s + 1);
     
-    const fb = await getFeedback(question, selectedAnswer, correct);
+    const fb = await api.getFeedback(question, selectedAnswer, correct);
     setFeedback(fb);
   };
 
