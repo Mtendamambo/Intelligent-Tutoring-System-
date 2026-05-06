@@ -1,29 +1,24 @@
-import mysql.connector
-from mysql.connector import Error
+import sqlite3
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def get_db_connection():
-    """Connects to the MySQL database (WAMP/XAMPP defaults)."""
+    """Connects to the SQLite database."""
     try:
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
-            database=os.getenv("DB_NAME", "zim_its")
-        )
+        conn = sqlite3.connect("zim_its.db")
+        conn.row_factory = sqlite3.Row  # This allows accessing columns by name
         return conn
-    except Error as e:
-        print(f"Error connecting to MySQL: {e}")
+    except Exception as e:
+        print(f"Error connecting to SQLite: {e}")
         return None
 
 def init_db():
-    """Ensures the tables exist in your MySQL database."""
+    """Ensures the tables exist in your SQLite database."""
     conn = get_db_connection()
     if conn is None:
-        print("❌ Could not connect to MySQL. Is WAMP/MySQL running?")
+        print("❌ Could not connect to SQLite.")
         return
         
     cursor = conn.cursor()
@@ -31,13 +26,13 @@ def init_db():
     # Students table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS students (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            grade INT NOT NULL,
-            literacy_level INT DEFAULT 1,
-            numeracy_level INT DEFAULT 1,
-            total_points INT DEFAULT 0,
-            streak INT DEFAULT 1,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            grade INTEGER NOT NULL,
+            literacy_level INTEGER DEFAULT 1,
+            numeracy_level INTEGER DEFAULT 1,
+            total_points INTEGER DEFAULT 0,
+            streak INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -45,12 +40,12 @@ def init_db():
     # Achievements table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS achievements (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            student_id INT NOT NULL,
-            achievement_id VARCHAR(50) NOT NULL,
-            title VARCHAR(255) NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            achievement_id TEXT NOT NULL,
+            title TEXT NOT NULL,
             description TEXT,
-            icon VARCHAR(10),
+            icon TEXT,
             unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
         )
@@ -59,11 +54,11 @@ def init_db():
     # Performance Logs table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS performance_logs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            student_id INT NOT NULL,
-            subject VARCHAR(50) NOT NULL,
-            correct INT NOT NULL,
-            total INT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            correct INTEGER NOT NULL,
+            total INTEGER NOT NULL,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
         )
@@ -71,7 +66,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("✅ MySQL Database Initialized Successfully!")
+    print("✅ SQLite Database Initialized Successfully!")
 
 if __name__ == "__main__":
     init_db()

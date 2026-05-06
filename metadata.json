@@ -1,6 +1,6 @@
 {
-  "name": "Remix: ZimPrimary ITS",
-  "description": "An AI-powered Intelligent Tutoring System for Zimbabwean Primary School learners, focusing on Literacy and Numeracy with adaptive content and real-time feedback.",
+  "name": "ZimPrimary ITS (Python Version)",
+  "description": "An AI-powered Intelligent Tutoring System for Zimbabwean Primary School learners, built with Python (Flask) and SQLite for easy deployment.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "AI-powered adaptive learning",
