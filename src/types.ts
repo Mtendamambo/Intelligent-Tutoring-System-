@@ -1,4 +1,10 @@
-export type Subject = 'Literacy' | 'Numeracy';
+export type Subject = 
+  | 'Indigenous Languages' 
+  | 'Mathematics' 
+  | 'Social Science' 
+  | 'Agriculture, Science and Technology' 
+  | 'Physical Education' 
+  | 'English Language';
 
 export interface Question {
   id: string;
@@ -23,10 +29,7 @@ export interface StudentProfile {
   id?: number;
   name: string;
   grade: number;
-  level: {
-    Literacy: number;
-    Numeracy: number;
-  };
+  level: Record<Subject, number>;
   streak: number;
   totalPoints: number;
 }

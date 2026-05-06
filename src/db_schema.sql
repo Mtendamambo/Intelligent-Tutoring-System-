@@ -5,8 +5,12 @@ CREATE TABLE IF NOT EXISTS students (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     grade INT NOT NULL,
-    literacy_level INT DEFAULT 1,
-    numeracy_level INT DEFAULT 1,
+    indigenous_languages_level INT DEFAULT 1,
+    mathematics_level INT DEFAULT 1,
+    social_science_level INT DEFAULT 1,
+    agriculture_science_tech_level INT DEFAULT 1,
+    physical_education_level INT DEFAULT 1,
+    english_language_level INT DEFAULT 1,
     total_points INT DEFAULT 0,
     streak INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -31,4 +35,13 @@ CREATE TABLE IF NOT EXISTS performance_logs (
     total INT NOT NULL,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS resources (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    subject VARCHAR(50) NOT NULL,
+    grade INT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

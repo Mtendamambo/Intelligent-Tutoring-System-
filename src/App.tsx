@@ -10,12 +10,14 @@ import Onboarding from './components/Onboarding';
 import StudentHome from './components/StudentHome';
 import LearningSession from './components/LearningSession';
 import SessionResult from './components/SessionResult';
+import ResourceHub from './components/ResourceHub';
+import TeacherDashboard from './components/TeacherDashboard';
 import { api } from './lib/api';
 
 export default function App() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [activeTab, setActiveTab] = useState<'home' | 'session' | 'result'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'session' | 'result' | 'resources' | 'dashboard'>('home');
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [lastSessionResult, setLastSessionResult] = useState<{ correct: number; total: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +47,15 @@ export default function App() {
     }
   };
 
+  const INITIAL_LEVELS: Record<Subject, number> = {
+    'Indigenous Languages': 1,
+    'Mathematics': 1,
+    'Social Science': 1,
+    'Agriculture, Science and Technology': 1,
+    'Physical Education': 1,
+    'English Language': 1
+  };
+
   const loadProfile = async (name: string, grade: number) => {
     try {
       setIsLoading(true);
@@ -53,7 +64,7 @@ export default function App() {
         setProfile({
           name,
           grade,
-          level: { Literacy: 1, Numeracy: 1 },
+          level: { ...INITIAL_LEVELS },
           streak: 1,
           totalPoints: 0
         });
@@ -71,7 +82,7 @@ export default function App() {
     } catch (err) {
       console.error("Failed to load profile", err);
       // Even if API fails, let them play in Demo Mode
-      setProfile({ name, grade, level: { Literacy: 1, Numeracy: 1 }, streak: 1, totalPoints: 0 });
+      setProfile({ name, grade, level: { ...INITIAL_LEVELS }, streak: 1, totalPoints: 0 });
     } finally {
       setIsLoading(false);
     }
@@ -183,7 +194,51 @@ export default function App() {
             onClose={() => setActiveTab('home')}
           />
         )}
+
+        {activeTab === 'resources' && (
+          <ResourceHub />
+        )}
+
+        {activeTab === 'dashboard' && (
+          <TeacherDashboard />
+        )}
       </main>
+      
+      {/* Navigation for Teacher/Admin */}
+      {activeTab !== 'session' && (
+        <div className="fixed top-4 right-4 flex space-x-2 bg-white/80 backdrop-blur-md p-1 rounded-full border border-slate-100 shadow-sm z-50">
+           <button 
+            onClick={() => setActiveTab('home')}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'home' 
+              ? 'bg-slate-800 text-white' 
+              : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Home
+          </button>
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'dashboard' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Dashboard
+          </button>
+          <button 
+            onClick={() => setActiveTab('resources')}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'resources' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Resources
+          </button>
+        </div>
+      )}
       
       {/* Footer Branding */}
       <footer className="fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-100 p-4 flex justify-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">

@@ -51,13 +51,31 @@ async function startServer() {
 
     try {
       const [rows]: any = await pool.query("SELECT * FROM students WHERE name = ? AND grade = ?", [name, grade]);
-      if (rows.length > 0) {
-        return res.json(rows[0]);
+      let student = rows.length > 0 ? rows[0] : null;
+
+      if (!student) {
+        const [result]: any = await pool.query("INSERT INTO students (name, grade) VALUES (?, ?)", [name, grade]);
+        const [newRows]: any = await pool.query("SELECT * FROM students WHERE id = ?", [result.insertId]);
+        student = newRows[0];
       }
 
-      const [result]: any = await pool.query("INSERT INTO students (name, grade) VALUES (?, ?)", [name, grade]);
-      const [newRows]: any = await pool.query("SELECT * FROM students WHERE id = ?", [result.insertId]);
-      res.json(newRows[0]);
+      // Map DB columns to frontend profile format
+      const profile = {
+        id: student.id,
+        name: student.name,
+        grade: student.grade,
+        totalPoints: student.total_points,
+        streak: student.streak,
+        level: {
+          'Indigenous Languages': student.indigenous_languages_level,
+          'Mathematics': student.mathematics_level,
+          'Social Science': student.social_science_level,
+          'Agriculture, Science and Technology': student.agriculture_science_tech_level,
+          'Physical Education': student.physical_education_level,
+          'English Language': student.english_language_level
+        }
+      };
+      res.json(profile);
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
     }
@@ -65,13 +83,32 @@ async function startServer() {
 
   app.put("/api/student/:id/progress", async (req, res) => {
     const { id } = req.params;
-    const { literacy_level, numeracy_level, total_points, streak } = req.body;
+    const { level, totalPoints, streak } = req.body;
     if (!pool) return res.status(500).json({ error: "No DB" });
 
     try {
       await pool.query(
-        "UPDATE students SET literacy_level = ?, numeracy_level = ?, total_points = ?, streak = ? WHERE id = ?",
-        [literacy_level, numeracy_level, total_points, streak, id]
+        `UPDATE students SET 
+          indigenous_languages_level = ?, 
+          mathematics_level = ?, 
+          social_science_level = ?, 
+          agriculture_science_tech_level = ?, 
+          physical_education_level = ?, 
+          english_language_level = ?, 
+          total_points = ?, 
+          streak = ? 
+        WHERE id = ?`,
+        [
+          level['Indigenous Languages'],
+          level['Mathematics'],
+          level['Social Science'],
+          level['Agriculture, Science and Technology'],
+          level['Physical Education'],
+          level['English Language'],
+          totalPoints,
+          streak,
+          id
+        ]
       );
       res.json({ success: true });
     } catch (err) {
@@ -118,6 +155,100 @@ async function startServer() {
         [id, subject, correct, total]
       );
       res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  // Resource Management API
+  app.get("/api/resources", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query("SELECT * FROM resources ORDER BY uploaded_at DESC");
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.post("/api/resources", async (req, res) => {
+    const { title, content, subject, grade } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query(
+        "INSERT INTO resources (title, content, subject, grade) VALUES (?, ?, ?, ?)",
+        [title, content, subject, grade]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.delete("/api/resources/:id", async (req, res) => {
+    const { id } = req.params;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("DELETE FROM resources WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  // Fetch relevant resources for AI context
+  app.get("/api/ai/context/:subject/:grade", async (req, res) => {
+    const { subject, grade } = req.params;
+    if (!pool) return res.status(500).json({ error: "" });
+    try {
+      const [rows]: any = await pool.query(
+        "SELECT content FROM resources WHERE subject = ? AND grade = ? LIMIT 3",
+        [subject, grade]
+      );
+      res.json(rows.map((r: any) => r.content).join("\n\n"));
+    } catch (err) {
+      res.json("");
+    }
+  });
+
+  // Teacher Dashboard API
+  app.get("/api/teacher/students", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query("SELECT * FROM students ORDER BY total_points DESC");
+      const students = rows.map((student: any) => ({
+        id: student.id,
+        name: student.name,
+        grade: student.grade,
+        totalPoints: student.total_points,
+        streak: student.streak,
+        createdAt: student.created_at,
+        level: {
+          'Indigenous Languages': student.indigenous_languages_level,
+          'Mathematics': student.mathematics_level,
+          'Social Science': student.social_science_level,
+          'Agriculture, Science and Technology': student.agriculture_science_tech_level,
+          'Physical Education': student.physical_education_level,
+          'English Language': student.english_language_level
+        }
+      }));
+      res.json(students);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.get("/api/teacher/logs", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query(`
+        SELECT l.*, s.name as student_name 
+        FROM performance_logs l 
+        JOIN students s ON l.student_id = s.id 
+        ORDER BY l.timestamp DESC 
+        LIMIT 50
+      `);
+      res.json(rows);
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
     }

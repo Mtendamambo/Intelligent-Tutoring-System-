@@ -9,12 +9,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, grade }),
     });
-    const data = await res.json();
-    return {
-      ...data,
-      level: { Literacy: data.literacy_level, Numeracy: data.numeracy_level },
-      totalPoints: data.total_points
-    };
+    return await res.json();
   },
 
   updateProgress: async (profile: StudentProfile) => {
@@ -23,9 +18,8 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        literacy_level: profile.level.Literacy,
-        numeracy_level: profile.level.Numeracy,
-        total_points: profile.totalPoints,
+        level: profile.level,
+        totalPoints: profile.totalPoints,
         streak: profile.streak
       }),
     });
@@ -59,5 +53,39 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subject, correct, total }),
     });
+  },
+
+  getResources: async () => {
+    const res = await fetch(`${API_BASE}/resources`);
+    return await res.json();
+  },
+
+  addResource: async (resource: { title: string; content: string; subject: string; grade: number }) => {
+    await fetch(`${API_BASE}/resources`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(resource),
+    });
+  },
+
+  deleteResource: async (id: number) => {
+    await fetch(`${API_BASE}/resources/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  getAiContext: async (subject: string, grade: number): Promise<string> => {
+    const res = await fetch(`${API_BASE}/ai/context/${subject}/${grade}`);
+    return await res.text();
+  },
+
+  getTeacherStudents: async (): Promise<any[]> => {
+    const res = await fetch(`${API_BASE}/teacher/students`);
+    return await res.json();
+  },
+
+  getTeacherLogs: async (): Promise<any[]> => {
+    const res = await fetch(`${API_BASE}/teacher/logs`);
+    return await res.json();
   }
 };

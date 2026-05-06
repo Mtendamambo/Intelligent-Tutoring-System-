@@ -1,6 +1,18 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { History as HistoryIcon, BookOpen, Calculator, Trophy, Star, Award } from 'lucide-react';
+import { 
+  History as HistoryIcon, 
+  BookOpen, 
+  Calculator, 
+  Trophy, 
+  Star, 
+  Award, 
+  Globe, 
+  Sprout, 
+  Dumbbell, 
+  Languages, 
+  PenTool 
+} from 'lucide-react';
 import { StudentProfile, Subject, Achievement } from '../types';
 
 interface StudentHomeProps {
@@ -44,22 +56,54 @@ export default function StudentHome({ profile, achievements, onStartSession }: S
       </motion.div>
 
       {/* Main Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <SubjectCard 
-          subject="Literacy" 
-          description="Build reading skills with stories like 'The Hare and the Baboon' and local word games."
-          icon={<BookOpen className="w-8 h-8" />}
-          color="bg-blue-500"
-          level={profile.level.Literacy}
-          onClick={() => onStartSession('Literacy')}
+          subject="Indigenous Languages" 
+          description="Explore the beauty of Shona, Ndebele, and local proverbs."
+          icon={<Languages className="w-8 h-8" />}
+          color="bg-orange-500"
+          level={profile.level['Indigenous Languages'] || 1}
+          onClick={() => onStartSession('Indigenous Languages')}
         />
         <SubjectCard 
-          subject="Numeracy" 
-          description="Master math using Zimbabwean context: currency (ZiG), market math, and farming patterns."
+          subject="Mathematics" 
+          description="Master math using ZiG currency, market math, and farming patterns."
           icon={<Calculator className="w-8 h-8" />}
           color="bg-emerald-500"
-          level={profile.level.Numeracy}
-          onClick={() => onStartSession('Numeracy')}
+          level={profile.level['Mathematics'] || 1}
+          onClick={() => onStartSession('Mathematics')}
+        />
+        <SubjectCard 
+          subject="Social Science" 
+          description="Learn about our heritage, history, and vibrant Zimbabwean culture."
+          icon={<Globe className="w-8 h-8" />}
+          color="bg-blue-500"
+          level={profile.level['Social Science'] || 1}
+          onClick={() => onStartSession('Social Science')}
+        />
+        <SubjectCard 
+          subject="Agriculture, Science and Technology" 
+          description="Discover sustainable farming, local plants, and technology."
+          icon={<Sprout className="w-8 h-8" />}
+          color="bg-green-600"
+          level={profile.level['Agriculture, Science and Technology'] || 1}
+          onClick={() => onStartSession('Agriculture, Science and Technology')}
+        />
+        <SubjectCard 
+          subject="Physical Education" 
+          description="Stay active with health, sportsmanship, and traditional games."
+          icon={<Dumbbell className="w-8 h-8" />}
+          color="bg-red-500"
+          level={profile.level['Physical Education'] || 1}
+          onClick={() => onStartSession('Physical Education')}
+        />
+        <SubjectCard 
+          subject="English Language" 
+          description="Sharpen English skills through reading and creative writing."
+          icon={<PenTool className="w-8 h-8" />}
+          color="bg-purple-500"
+          level={profile.level['English Language'] || 1}
+          onClick={() => onStartSession('English Language')}
         />
       </div>
 
@@ -76,9 +120,13 @@ export default function StudentHome({ profile, achievements, onStartSession }: S
             </button>
           </div>
           
-          <div className="space-y-6">
-            <ProgressBar label="Literacy Level" value={profile.level.Literacy * 10} color="bg-blue-500" />
-            <ProgressBar label="Numeracy Level" value={profile.level.Numeracy * 10} color="bg-emerald-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <ProgressBar label="Indigenous Languages" value={(profile.level['Indigenous Languages'] || 1) * 10} color="bg-orange-500" />
+            <ProgressBar label="Mathematics" value={(profile.level['Mathematics'] || 1) * 10} color="bg-emerald-500" />
+            <ProgressBar label="Social Science" value={(profile.level['Social Science'] || 1) * 10} color="bg-blue-500" />
+            <ProgressBar label="Agric & Science" value={(profile.level['Agriculture, Science and Technology'] || 1) * 10} color="bg-green-600" />
+            <ProgressBar label="Physical Ed" value={(profile.level['Physical Education'] || 1) * 10} color="bg-red-500" />
+            <ProgressBar label="English Language" value={(profile.level['English Language'] || 1) * 10} color="bg-purple-500" />
           </div>
         </section>
 
