@@ -1,0 +1,30 @@
+TITLE: INTELLIGENT TUTORING SYSTEM (ITS) FOR ZIMBABWEAN PRIMARY SCHOOL LEARNERS
+STUDENT: Never Nyamvura
+FACULTY: Technology, Zimbabwe Open University
+
+1. ABSTRACT
+The ZimPrimary ITS is an AI-driven educational platform designed for Grade 3-7 students. It solves the challenge of non-personalized instruction in large classrooms by providing an adaptive AI tutor. The system uses React for the UI, Gemini AI for smart content, and WAMP/MySQL for data storage.
+
+2. STATEMENT OF THE PROBLEM
+Zimbabwean primary schools suffer from high pupil-to-teacher ratios, making individual feedback nearly impossible. This leads to learning gaps that accumulate over time, especially in Literacy and Numeracy.
+
+3. METHODOLOGY (DESIGN SCIENCE RESEARCH)
+The project used the DSR framework to create a functional software artifact.
+- Artifact: A Web-based ITS.
+- Tools: React, TypeScript, Node.js, MySQL (WAMP).
+- Intelligence: Google Gemini 1.5 Flash.
+
+4. KEY FEATURES
+- Adaptive Difficulty: The AI adjusts questions based on the student's performance.
+- Local Context: Math problems use local currency (ZiG) and names native to Zimbabwe.
+- Data Persistence: Every session result is saved to a local MySQL database for long-term tracking.
+- Gamification: Students earn XP and unlock awards to encourage participation.
+
+5. DATABASE DESIGN (MySQL)
+The system uses the 'zim_its' database with tables for students, achievements, and performance logs. This ensures a student can return to their progress at any time.
+
+6. INSTALLATION ON PC
+1. Install Node.js and WAMP Server.
+2. Setup MySQL database using 'src/db_schema.sql'.
+3. Configure '.env' with local DB credentials.
+4. Run 'npm install' and 'npm run dev'.
