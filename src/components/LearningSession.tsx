@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2, History as HistoryIcon, Settings } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2, History as HistoryIcon, Settings, BookOpen } from 'lucide-react';
 import { Question, Subject, StudentProfile } from '../types';
-import { generateQuestion, getFeedback } from '../lib/gemini';
+import { generateQuestion, getFeedback, generateTopicSummary } from '../lib/gemini';
 import { api } from '../lib/api';
 
 interface LearningSessionProps {
@@ -14,6 +14,8 @@ interface LearningSessionProps {
 
 export default function LearningSession({ subject, profile, onSessionComplete, onExit }: LearningSessionProps) {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [topicSummary, setTopicSummary] = useState<string | null>(null);
+  const [isStudyMode, setIsStudyMode] = useState(false);
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -25,6 +27,26 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
   const [showSettings, setShowSettings] = useState(false);
   const [sessionMaxQuestions, setSessionMaxQuestions] = useState(5);
   const [sessionDifficulty, setSessionDifficulty] = useState(profile.level[subject] || 1);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      const updatedProfile = {
+        ...profile,
+        level: {
+          ...profile.level,
+          [subject]: sessionDifficulty
+        }
+      };
+      await api.updateProgress(updatedProfile);
+      setShowSettings(false);
+    } catch (error) {
+      console.error("Failed to save settings", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const subjectTopics: Record<Subject, string[]> = {
     'Indigenous Languages': ['Shona/Ndebele Phrases', 'Traditional Proverbs (Tsumo)', 'Local Riddles (Zvirahwe)', 'Grammar & Spoken Word'],
@@ -38,7 +60,24 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
   const startSession = async (topic: string) => {
     setSelectedTopic(topic);
     setIsLoading(true);
-    await fetchNextQuestion(topic);
+    // Study phase first
+    try {
+      const summary = await generateTopicSummary(subject, profile.grade, topic);
+      setTopicSummary(summary);
+      setIsStudyMode(true);
+    } catch (err) {
+      console.error("Failed to generate summary", err);
+      // Skip study mode if it fails
+      await startQuiz(topic);
+    }
+    setIsLoading(false);
+  };
+
+  const startQuiz = async (topic?: string) => {
+    const t = topic || selectedTopic || 'General';
+    setIsStudyMode(false);
+    setIsLoading(true);
+    await fetchNextQuestion(t);
   };
 
   const fetchNextQuestion = async (topic?: string) => {
@@ -160,10 +199,12 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
                 </div>
 
                 <button 
-                  onClick={() => setShowSettings(false)}
-                  className="w-full bg-slate-800 text-white p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 transition-colors"
+                  onClick={handleSaveSettings}
+                  disabled={isSaving}
+                  className="w-full bg-slate-800 text-white p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
-                  Save Settings
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isSaving ? 'Saving...' : 'Save Settings'}</span>
                 </button>
               </motion.div>
             </div>
@@ -201,7 +242,62 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-        <p className="text-slate-500 font-bold animate-pulse">AI is preparing your next challenge...</p>
+        <p className="text-slate-500 font-bold animate-pulse">
+          {isStudyMode ? 'AI is summarizing this topic for you...' : 'AI is preparing your next challenge...'}
+        </p>
+      </div>
+    );
+  }
+
+  if (isStudyMode && topicSummary) {
+    return (
+      <div className="max-w-2xl mx-auto p-4 space-y-8">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-3xl p-8 shadow-xl border border-blue-50 space-y-8"
+        >
+          <div className="flex items-center space-x-4 mb-2">
+            <div className="bg-blue-600 p-3 rounded-2xl text-white">
+              <BookOpen size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">{subject}</p>
+              <h2 className="text-xl font-bold text-slate-800">{selectedTopic} Overview</h2>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-100 rounded-full" />
+            <p className="text-xl font-medium text-slate-700 leading-relaxed pl-6 italic">
+              "{topicSummary}"
+            </p>
+          </div>
+
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest mb-4">What to expect:</h3>
+            <ul className="space-y-3">
+              {[
+                `Grade ${profile.grade} curriculum standard`,
+                `${sessionMaxQuestions} interactive questions`,
+                `Real-time Zimbabwean context feedback`
+              ].map((item, i) => (
+                <li key={i} className="flex items-center space-x-3 text-sm font-bold text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button 
+            onClick={() => startQuiz()}
+            className="w-full bg-blue-600 text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center space-x-3 group"
+          >
+            <span>Start Practice Quiz</span>
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </motion.div>
       </div>
     );
   }

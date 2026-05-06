@@ -87,5 +87,14 @@ export const api = {
   getTeacherLogs: async (): Promise<any[]> => {
     const res = await fetch(`${API_BASE}/teacher/logs`);
     return await res.json();
+  },
+  
+  getTeacherAchievements: async (): Promise<any[]> => {
+    const res = await fetch(`${API_BASE}/teacher/achievements`);
+    const data = await res.json();
+    return data.map((a: any) => ({
+      ...a,
+      unlockedAt: new Date(a.unlocked_at)
+    }));
   }
 };

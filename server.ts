@@ -246,7 +246,23 @@ async function startServer() {
         FROM performance_logs l 
         JOIN students s ON l.student_id = s.id 
         ORDER BY l.timestamp DESC 
-        LIMIT 50
+        LIMIT 500
+      `);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.get("/api/teacher/achievements", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query(`
+        SELECT a.*, s.name as student_name 
+        FROM achievements a 
+        JOIN students s ON a.student_id = s.id 
+        ORDER BY a.unlocked_at DESC 
+        LIMIT 100
       `);
       res.json(rows);
     } catch (err) {

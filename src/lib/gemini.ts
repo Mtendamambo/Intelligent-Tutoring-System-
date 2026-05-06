@@ -104,3 +104,25 @@ export async function getFeedback(question: Question, studentAnswer: string, isC
     return isCorrect ? "Great job! Keep going!" : "Not quite, but you are learning fast! Try another one.";
   }
 }
+
+export async function generateTopicSummary(subject: Subject, grade: number, topic: string): Promise<string> {
+   const prompt = `
+    You are an expert Zimbabwean Primary School teacher.
+    Provide a very brief, engaging 3-sentence "Lesson Summary" for a Grade ${grade} student on the topic: "${topic}" in the subject of ${subject}.
+    
+    Guidelines:
+    - Use clear, simple language suitable for a child.
+    - Mention one interesting fact relevant to Zimbabwe.
+    - End with a motivational sentence encouraging them to start the quiz.
+  `;
+
+  try {
+    const result = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt
+    });
+    return result.text || "Let's review what we know about this topic and do our best!";
+  } catch (error) {
+    return "Ready to test your knowledge? Let's dive into some practice questions!";
+  }
+}
