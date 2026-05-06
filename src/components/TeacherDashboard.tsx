@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target } from 'lucide-react';
+import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import { 
@@ -68,13 +68,41 @@ export default function TeacherDashboard() {
   const [achievementFilter, setAchievementFilter] = useState('All');
   const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
   const [sortKey, setSortKey] = useState<'name' | 'totalPoints' | 'streak'>('totalPoints');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedStudent, setSelectedStudent] = useState<StudentSummary | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [searchTermLogs, setSearchTermLogs] = useState('');
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleSelectStudent = (id: number) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (ids: number[]) => {
+    if (selectedStudentIds.length === ids.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(ids);
+    }
+  };
+
+  const handleBulkAward = (points: number) => {
+    // In a real app, this would be an API call
+    alert(`Awarding ${points} XP to ${selectedStudentIds.length} students: ${selectedStudentIds.join(', ')}`);
+    setSelectedStudentIds([]);
+  };
+
+  const handleBulkAssign = (subject: string) => {
+    // In a real app, this would be an API call
+    alert(`Assigning ${subject} module to ${selectedStudentIds.length} students`);
+    setSelectedStudentIds([]);
+  };
 
   const fetchData = async () => {
     try {
@@ -103,9 +131,23 @@ export default function TeacherDashboard() {
       return matchesSearch && matchesGrade;
     })
     .sort((a, b) => {
-      if (sortKey === 'name') return a.name.localeCompare(b.name);
-      return b[sortKey] - a[sortKey];
+      let result = 0;
+      if (sortKey === 'name') {
+        result = a.name.localeCompare(b.name);
+      } else {
+        result = a[sortKey] - b[sortKey];
+      }
+      return sortOrder === 'asc' ? result : -result;
     });
+
+  const toggleSort = (key: 'name' | 'totalPoints' | 'streak') => {
+    if (sortKey === key) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder(key === 'name' ? 'asc' : 'desc'); // Name A-Z by default, values High-Low by default
+    }
+  };
 
   const getAvgLevel = (subject: string): string => {
     if (students.length === 0) return "0";
@@ -521,41 +563,135 @@ export default function TeacherDashboard() {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sort By:</span>
               <div className="flex bg-slate-50 p-1 rounded-xl">
                 <button 
-                  onClick={() => setSortKey('totalPoints')}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                  onClick={() => toggleSort('totalPoints')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all flex items-center space-x-1.5 ${
                     sortKey === 'totalPoints' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  XP Points
+                  <span>XP Points</span>
+                  {sortKey === 'totalPoints' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </button>
                 <button 
-                  onClick={() => setSortKey('streak')}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                  onClick={() => toggleSort('streak')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all flex items-center space-x-1.5 ${
                     sortKey === 'streak' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Streak
+                  <span>Streak</span>
+                  {sortKey === 'streak' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </button>
                 <button 
-                  onClick={() => setSortKey('name')}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${
+                  onClick={() => toggleSort('name')}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all flex items-center space-x-1.5 ${
                     sortKey === 'name' ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Name
+                  <span>Name</span>
+                  {sortKey === 'name' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </button>
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {selectedStudentIds.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center space-x-6 border border-slate-700"
+              >
+                <div className="flex items-center space-x-2 border-r border-slate-700 pr-6 mr-2">
+                  <span className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-black">{selectedStudentIds.length}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Selected</span>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="group relative">
+                    <button className="flex items-center space-x-2 text-xs font-black uppercase tracking-widest hover:text-blue-400 transition-colors">
+                      <BookOpen size={16} />
+                      <span>Assign Module</span>
+                    </button>
+                    <div className="absolute bottom-full mb-2 left-0 hidden group-hover:block w-48 bg-slate-800 rounded-xl p-2 shadow-xl">
+                      {['Mathematics', 'Science', 'English', 'Agriculture'].map(s => (
+                        <button 
+                          key={s}
+                          onClick={() => handleBulkAssign(s)}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 text-[10px] font-bold uppercase"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="group relative">
+                    <button className="flex items-center space-x-2 text-xs font-black uppercase tracking-widest hover:text-amber-400 transition-colors">
+                      <Award size={16} />
+                      <span>Award XP</span>
+                    </button>
+                    <div className="absolute bottom-full mb-2 left-0 hidden group-hover:block w-32 bg-slate-800 rounded-xl p-2 shadow-xl">
+                      {[10, 25, 50].map(points => (
+                        <button 
+                          key={points}
+                          onClick={() => handleBulkAward(points)}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 text-[10px] font-bold uppercase"
+                        >
+                          +{points} XP
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setSelectedStudentIds([])}
+                    className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            )}
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50">
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Grade</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Name & Subject Levels</th>
+                  <th className="px-6 py-4 w-10">
+                    <div className="flex items-center justify-center">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0}
+                        onChange={() => handleSelectAll(filteredStudents.map(s => s.id))}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </div>
+                  </th>
+                  <th className="px-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Grade</th>
+                  <th 
+                    className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600"
+                    onClick={() => toggleSort('name')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Name & Subject Levels</span>
+                      {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />) : <ArrowUpDown size={10} className="text-slate-300" />}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Levels (Avg)</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Points</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Streak</th>
+                  <th 
+                    className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600"
+                    onClick={() => toggleSort('totalPoints')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Total Points</span>
+                      {sortKey === 'totalPoints' ? (sortOrder === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />) : <ArrowUpDown size={10} className="text-slate-300" />}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600"
+                    onClick={() => toggleSort('streak')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Streak</span>
+                      {sortKey === 'streak' ? (sortOrder === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />) : <ArrowUpDown size={10} className="text-slate-300" />}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Last Seen</th>
                 </tr>
               </thead>
@@ -563,17 +699,26 @@ export default function TeacherDashboard() {
                 {filteredStudents.map((s) => (
                   <tr 
                     key={s.id} 
-                    onClick={() => setSelectedStudent(s)}
-                    className="hover:bg-slate-50/30 transition-colors cursor-pointer group"
+                    className={`hover:bg-slate-50/30 transition-colors cursor-pointer group ${selectedStudentIds.includes(s.id) ? 'bg-blue-50/30' : ''}`}
                   >
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-4" onClick={(e) => { e.stopPropagation(); handleSelectStudent(s.id); }}>
+                      <div className="flex items-center justify-center">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedStudentIds.includes(s.id)}
+                          onChange={() => {}} // Handled by container row click pattern
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-1 py-4 text-center" onClick={() => setSelectedStudent(s)}>
                       <div className="flex items-center justify-center">
                         <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black">
                           {s.grade}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4" onClick={() => setSelectedStudent(s)}>
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-400 uppercase border-2 border-white shadow-sm shrink-0 group-hover:border-blue-100 transition-colors">
                           {s.name.charAt(0)}
@@ -806,26 +951,54 @@ export default function TeacherDashboard() {
               <div className="flex-1 overflow-y-auto p-8 pt-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Proficiency Radar */}
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                    <div className="flex items-center space-x-2 mb-6">
-                      <BookOpen size={20} className="text-blue-500" />
-                      <h3 className="text-lg font-bold text-slate-800">Subject Proficiency</h3>
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-full -mr-16 -mt-16 blur-3xl" />
+                    <div className="flex items-center justify-between mb-6 relative z-10">
+                      <div className="flex items-center space-x-2">
+                        <BookOpen size={20} className="text-blue-500" />
+                        <h3 className="text-lg font-bold text-slate-800">Proficiency Profile</h3>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        <span className="text-[10px] font-black uppercase text-slate-400">Current Lvl</span>
+                      </div>
                     </div>
-                    <div className="h-64">
+                    <div className="h-64 relative z-10">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={getSubjectProficiency(selectedStudent.level)}>
-                          <PolarGrid stroke="#cbd5e1" />
-                          <PolarAngleAxis dataKey="subject" tick={{fontSize: 9, fill: '#64748b', fontWeight: 600}} />
-                          <PolarRadiusAxis angle={30} domain={[0, 10]} axisLine={false} tick={false} />
+                          <PolarGrid stroke="#e2e8f0" />
+                          <PolarAngleAxis 
+                            dataKey="subject" 
+                            tick={{fontSize: 10, fill: '#64748b', fontWeight: 700}} 
+                          />
+                          <PolarRadiusAxis 
+                            angle={30} 
+                            domain={[0, 10]} 
+                            axisLine={false} 
+                            tick={false} 
+                          />
                           <Radar
                             name={selectedStudent.name}
                             dataKey="value"
-                            stroke="#3b82f6"
+                            stroke="#2563eb"
                             fill="#3b82f6"
-                            fillOpacity={0.6}
+                            fillOpacity={0.4}
+                            strokeWidth={3}
+                          />
+                          <Tooltip 
+                            contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                            formatter={(value: any) => [`Level ${value}`, 'Proficiency']}
                           />
                         </RadarChart>
                       </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                       {getSubjectProficiency(selectedStudent.level).map(s => (
+                         <div key={s.fullSubject} className="flex items-center justify-between px-3 py-1.5 bg-slate-50 rounded-xl">
+                            <span className="text-[9px] font-bold text-slate-500 truncate mr-2">{s.subject}</span>
+                            <span className="text-[10px] font-black text-blue-600">Lvl {s.value}</span>
+                         </div>
+                       ))}
                     </div>
                   </div>
 

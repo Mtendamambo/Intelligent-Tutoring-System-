@@ -80,21 +80,42 @@ export const api = {
   },
 
   getTeacherStudents: async (): Promise<any[]> => {
-    const res = await fetch(`${API_BASE}/teacher/students`);
-    return await res.json();
+    try {
+      const res = await fetch(`${API_BASE}/teacher/students`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
 
   getTeacherLogs: async (): Promise<any[]> => {
-    const res = await fetch(`${API_BASE}/teacher/logs`);
-    return await res.json();
+    try {
+      const res = await fetch(`${API_BASE}/teacher/logs`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   },
   
   getTeacherAchievements: async (): Promise<any[]> => {
-    const res = await fetch(`${API_BASE}/teacher/achievements`);
-    const data = await res.json();
-    return data.map((a: any) => ({
-      ...a,
-      unlockedAt: new Date(a.unlocked_at)
-    }));
+    try {
+      const res = await fetch(`${API_BASE}/teacher/achievements`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data.map((a: any) => ({
+        ...a,
+        unlockedAt: new Date(a.unlocked_at)
+      }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   }
 };
