@@ -117,5 +117,55 @@ export const api = {
       console.error(e);
       return [];
     }
+  },
+
+  login: async (credentials: any) => {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credentials)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data;
+  },
+
+  register: async (data: any) => {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
+    return result;
+  },
+
+  admin: {
+    getUsers: async () => {
+      const res = await fetch(`${API_BASE}/admin/users`);
+      return await res.json();
+    },
+    deleteUser: async (id: number) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, { method: "DELETE" });
+      return await res.json();
+    },
+    updateRole: async (id: number, role: string) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role })
+      });
+      return await res.json();
+    }
+  },
+
+  getDbStatus: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/db-status`);
+      return await res.json();
+    } catch (e) {
+      return { connected: false };
+    }
   }
 };

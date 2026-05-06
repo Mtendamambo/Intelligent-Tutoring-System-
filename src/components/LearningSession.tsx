@@ -117,7 +117,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
       <div className="max-w-2xl mx-auto p-4 space-y-8 relative">
         <div className="flex justify-between items-start">
           <div className="flex-1 text-center space-y-4 py-10">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-blue-50 text-blue-600 mb-4">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-zim-green/10 text-zim-green mb-4">
               <Sparkles size={40} />
             </div>
             <h2 className="text-3xl font-heading font-extrabold text-slate-800">Choose a Focus</h2>
@@ -258,17 +258,17 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
           className="bg-white rounded-3xl p-8 shadow-xl border border-blue-50 space-y-8"
         >
           <div className="flex items-center space-x-4 mb-2">
-            <div className="bg-blue-600 p-3 rounded-2xl text-white">
+            <div className="bg-zim-green p-3 rounded-2xl text-white">
               <BookOpen size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">{subject}</p>
+              <p className="text-[10px] font-black uppercase text-zim-green tracking-widest">{subject}</p>
               <h2 className="text-xl font-bold text-slate-800">{selectedTopic} Overview</h2>
             </div>
           </div>
 
           <div className="relative">
-            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-100 rounded-full" />
+            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-zim-gold/30 rounded-full" />
             <p className="text-xl font-medium text-slate-700 leading-relaxed pl-6 italic">
               "{topicSummary}"
             </p>
@@ -292,7 +292,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
 
           <button 
             onClick={() => startQuiz()}
-            className="w-full bg-blue-600 text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center space-x-3 group"
+            className="w-full bg-zim-green text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-colors shadow-lg flex items-center justify-center space-x-3 group"
           >
             <span>Start Practice Quiz</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -313,7 +313,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
       </div>
 
       <div className="bg-slate-200 h-2 rounded-full overflow-hidden">
-        <motion.div animate={{ width: `${(count / sessionMaxQuestions) * 100}%` }} className="h-full bg-blue-500" />
+        <motion.div animate={{ width: `${(count / sessionMaxQuestions) * 100}%` }} className="h-full bg-zim-gradient" />
       </div>
 
       <AnimatePresence mode="wait">
@@ -326,7 +326,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
             className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 space-y-8"
           >
             <div className="space-y-4">
-              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-blue-100">
+              <span className="bg-zim-red/10 text-zim-red px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-zim-red/20">
                 {question.topic}
               </span>
               <p className="text-2xl font-bold text-slate-800 leading-snug">
@@ -384,7 +384,7 @@ export default function LearningSession({ subject, profile, onSessionComplete, o
             ) : (
               <button
                 onClick={handleNext}
-                className="w-full bg-blue-600 text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center space-x-2"
+                className="w-full bg-zim-green text-white p-6 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-colors shadow-lg flex items-center justify-center space-x-2"
               >
                 <span>{count === sessionMaxQuestions ? 'Finish' : 'Next Challenge'}</span>
                 <ArrowRight className="w-5 h-5" />

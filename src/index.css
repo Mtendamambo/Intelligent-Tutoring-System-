@@ -4,4 +4,12 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Outfit", sans-serif;
+
+  --color-zim-green: #008149;
+  --color-zim-gold: #FFD200;
+  --color-zim-red: #E41F27;
+  --color-zim-black: #000000;
+
+  --background-image-zim-flag: linear-gradient(to right, #008149 0%, #008149 20%, #FFD200 20%, #FFD200 40%, #E41F27 40%, #E41F27 60%, #000000 60%, #000000 80%, #ffffff 80%);
+  --background-image-zim-gradient: linear-gradient(135deg, #008149 0%, #FFD200 50%, #E41F27 100%);
 }

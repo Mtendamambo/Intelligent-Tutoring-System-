@@ -34,6 +34,121 @@ async function startServer() {
     console.error("Database connection failed:", err);
   }
 
+  // AUTH API
+  app.post("/api/auth/register", async (req, res) => {
+    const { username, password, role, name, grade } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+
+    try {
+      // 1. Create User
+      const [userResult]: any = await pool.query(
+        "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+        [username, password, role || 'student']
+      );
+      const userId = userResult.insertId;
+
+      let studentId = null;
+      // 2. If student, create student profile
+      if (role === 'student' && name && grade) {
+        const [studentResult]: any = await pool.query(
+          "INSERT INTO students (user_id, name, grade) VALUES (?, ?, ?)",
+          [userId, name, grade]
+        );
+        studentId = studentResult.insertId;
+      }
+
+      res.json({ success: true, userId, studentId });
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        res.status(400).json({ error: "Username already exists" });
+      } else {
+        res.status(500).json({ error: "Registration failed" });
+      }
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const { username, password } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+
+    try {
+      const [users]: any = await pool.query(
+        "SELECT * FROM users WHERE username = ? AND password = ?",
+        [username, password]
+      );
+
+      if (users.length === 0) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const user = users[0];
+      let studentProfile = null;
+
+      if (user.role === 'student') {
+        const [students]: any = await pool.query("SELECT * FROM students WHERE user_id = ?", [user.id]);
+        if (students.length > 0) {
+          const s = students[0];
+          studentProfile = {
+            id: s.id,
+            name: s.name,
+            grade: s.grade,
+            totalPoints: s.total_points,
+            streak: s.streak,
+            level: {
+              'Indigenous Languages': s.indigenous_languages_level,
+              'Mathematics': s.mathematics_level,
+              'Social Science': s.social_science_level,
+              'Agriculture, Science and Technology': s.agriculture_science_tech_level,
+              'Physical Education': s.physical_education_level,
+              'English Language': s.english_language_level
+            }
+          };
+        }
+      }
+
+      res.json({ 
+        user: { id: user.id, username: user.username, role: user.role },
+        studentProfile
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // ADMIN API
+  app.get("/api/admin/users", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query("SELECT id, username, role, created_at FROM users");
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    const { id } = req.params;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("DELETE FROM users WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
   // API Routes
   app.get("/api/db-status", async (req, res) => {
     try {

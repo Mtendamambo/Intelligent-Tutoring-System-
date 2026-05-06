@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import { 
@@ -59,7 +59,11 @@ interface AchievementSummary {
   unlockedAt: Date;
 }
 
-export default function TeacherDashboard() {
+interface TeacherDashboardProps {
+  onLogout: () => void;
+}
+
+export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const [students, setStudents] = useState<StudentSummary[]>([]);
   const [logs, setLogs] = useState<PerformanceLog[]>([]);
   const [achievements, setAchievements] = useState<AchievementSummary[]>([]);
@@ -305,19 +309,32 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-heading font-extrabold text-slate-800 tracking-tight">Teacher Dashboard</h1>
-          <p className="text-slate-500 italic">Monitoring learner progress and class performance.</p>
+    <div className="max-w-[1920px] mx-auto p-4 md:p-8 space-y-8 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center space-x-4">
+          <div className="w-14 h-14 bg-zim-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-zim-green/20">
+            <BarChart3 className="text-white" size={28} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zim-green">Monitoring learner progress and performance</p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        
+        <div className="flex items-center space-x-3">
           <button 
             onClick={handleExportCSV}
-            className="bg-white border-2 border-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center space-x-2 hover:bg-slate-50 transition-colors shadow-sm"
+            className="px-6 py-3 bg-white border border-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center mb-1 group shadow-sm"
           >
-            <Download size={18} />
-            <span>Export CSV</span>
+            <Download size={16} className="mr-2 group-hover:scale-110 transition-transform" />
+            <span>Export Reports</span>
+          </button>
+          <button 
+            onClick={onLogout}
+            className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center space-x-2 shadow-xl shadow-slate-900/10"
+          >
+            <span>Logout</span>
+            <LogOut size={16} />
           </button>
         </div>
       </div>

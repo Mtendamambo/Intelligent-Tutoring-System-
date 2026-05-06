@@ -86,7 +86,7 @@ export default function ResourceHub() {
         </div>
         <button 
           onClick={() => setIsAdding(true)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+          className="flex items-center space-x-2 bg-zim-green text-white px-4 py-2 rounded-xl font-bold hover:brightness-110 transition-colors shadow-lg shadow-zim-green/20"
         >
           <Plus size={20} />
           <span>Add Material</span>
@@ -150,7 +150,7 @@ export default function ResourceHub() {
           {filteredResources.map((res) => (
             <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-start justify-between group transform transition-all hover:scale-[1.01] hover:shadow-md">
               <div className="flex items-start space-x-4">
-                <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+                <div className="bg-zim-green/10 p-3 rounded-xl text-zim-green">
                   <Book size={24} />
                 </div>
                 <div>
@@ -159,7 +159,7 @@ export default function ResourceHub() {
                     <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded text-slate-500">
                       Grade {res.grade}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded text-blue-600">
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-zim-gold/20 px-2 py-0.5 rounded text-zim-gold contrast-125 brightness-75">
                       {res.subject}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium tracking-tight">
@@ -257,7 +257,7 @@ export default function ResourceHub() {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center space-x-2"
+                  className="flex-1 bg-zim-green text-white px-6 py-4 rounded-xl font-bold hover:brightness-110 transition-colors shadow-lg shadow-zim-green/20 flex items-center justify-center space-x-2"
                 >
                   <Upload size={20} />
                   <span>Upload Resource</span>
