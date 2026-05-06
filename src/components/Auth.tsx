@@ -12,6 +12,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [role, setRole] = useState<'student' | 'teacher' | 'admin'>('student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<any>(null);
 
   const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       if (isLogin) {
@@ -43,7 +45,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           role
         });
         setIsLogin(true);
-        setError("Account created! Please login.");
+        setSuccess("Account created successfully! Please sign in with your password.");
       }
     } catch (err: any) {
       setError(err.message || "Operation failed");
@@ -176,8 +178,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl text-xs font-bold text-rose-600 animate-shake">
+              <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl text-xs font-bold text-rose-600 animate-shake flex items-center">
+                <Database size={14} className="mr-2" />
                 {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-zim-green/10 border border-zim-green/20 p-3 rounded-xl text-xs font-bold text-zim-green animate-bounce-in flex items-center">
+                <ShieldCheck size={14} className="mr-2" />
+                {success}
               </div>
             )}
 

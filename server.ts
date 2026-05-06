@@ -59,10 +59,13 @@ async function startServer() {
 
       res.json({ success: true, userId, studentId });
     } catch (err: any) {
+      console.error("Registration Error:", err);
       if (err.code === 'ER_DUP_ENTRY') {
         res.status(400).json({ error: "Username already exists" });
+      } else if (err.code === 'ER_BAD_FIELD_ERROR' || err.code === 'ER_NO_SUCH_TABLE') {
+        res.status(500).json({ error: `Database Schema Error: ${err.message}` });
       } else {
-        res.status(500).json({ error: "Registration failed" });
+        res.status(500).json({ error: `Registration failed: ${err.message || 'Unknown error'}` });
       }
     }
   });
@@ -110,8 +113,9 @@ async function startServer() {
         user: { id: user.id, username: user.username, role: user.role },
         studentProfile
       });
-    } catch (err) {
-      res.status(500).json({ error: "Login failed" });
+    } catch (err: any) {
+      console.error("Login Error:", err);
+      res.status(500).json({ error: `Login failed: ${err.message || 'Unknown error'}` });
     }
   });
 
@@ -161,17 +165,28 @@ async function startServer() {
   });
 
   app.post("/api/student/profile", async (req, res) => {
-    const { name, grade } = req.body;
+    const { name, grade, userId } = req.body;
     if (!pool) return res.status(500).json({ error: "No DB" });
 
     try {
-      const [rows]: any = await pool.query("SELECT * FROM students WHERE name = ? AND grade = ?", [name, grade]);
+      // First check if profile exists for this user
+      let [rows]: any = await pool.query("SELECT * FROM students WHERE user_id = ?", [userId]);
       let student = rows.length > 0 ? rows[0] : null;
 
       if (!student) {
-        const [result]: any = await pool.query("INSERT INTO students (name, grade) VALUES (?, ?)", [name, grade]);
-        const [newRows]: any = await pool.query("SELECT * FROM students WHERE id = ?", [result.insertId]);
-        student = newRows[0];
+        // Fallback to name/grade check (legacy)
+        [rows] = await pool.query("SELECT * FROM students WHERE name = ? AND grade = ?", [name, grade]);
+        student = rows.length > 0 ? rows[0] : null;
+        
+        if (student) {
+          // Link existing profile to user
+          await pool.query("UPDATE students SET user_id = ? WHERE id = ?", [userId, student.id]);
+        } else {
+          // Create new linked profile
+          const [result]: any = await pool.query("INSERT INTO students (user_id, name, grade) VALUES (?, ?, ?)", [userId, name, grade]);
+          const [newRows]: any = await pool.query("SELECT * FROM students WHERE id = ?", [result.insertId]);
+          student = newRows[0];
+        }
       }
 
       // Map DB columns to frontend profile format

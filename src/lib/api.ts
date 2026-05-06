@@ -3,11 +3,11 @@ import { StudentProfile, Achievement, Subject } from "../types";
 const API_BASE = "/api";
 
 export const api = {
-  getProfile: async (name: string, grade: number): Promise<StudentProfile> => {
+  getProfile: async (name: string, grade: number, userId: number): Promise<StudentProfile> => {
     const res = await fetch(`${API_BASE}/student/profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, grade }),
+      body: JSON.stringify({ name, grade, userId }),
     });
     return await res.json();
   },

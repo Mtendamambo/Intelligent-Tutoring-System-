@@ -55,6 +55,20 @@ export default function App() {
     if (studentProfile) {
       localStorage.setItem('zim_its_profile', JSON.stringify(studentProfile));
       loadAchievements(studentProfile.id);
+    } else {
+      localStorage.removeItem('zim_its_profile');
+    }
+  };
+
+  const handleCreateProfile = async (name: string, grade: number) => {
+    if (!user) return;
+    try {
+      const profileData = await api.getProfile(name, grade, user.id);
+      setProfile(profileData);
+      localStorage.setItem('zim_its_profile', JSON.stringify(profileData));
+      loadAchievements(profileData.id);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -122,7 +136,7 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-zim-green animate-spin" />
       </div>
     );
   }
@@ -157,14 +171,43 @@ export default function App() {
               <GraduationCap size={48} />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Profile Not Found</h1>
-              <p className="text-slate-500 max-w-sm mt-2 font-medium">We couldn't synchronize your learner data. Please try registering again or contact a teacher.</p>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Setup Your Profile</h1>
+              <p className="text-slate-500 max-w-sm mt-2 font-medium">Welcome! It looks like you're new here. Let's set up your learner profile to start tracking your progress.</p>
             </div>
+            
+            <div className="w-full max-w-sm bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+              <div className="text-left">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Your Full Name</label>
+                <input 
+                  type="text" 
+                  id="setup-name"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all placeholder:text-slate-300 font-medium"
+                  placeholder="e.g. Tendai Moyo"
+                />
+              </div>
+              <div className="text-left">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Grade</label>
+                <select id="setup-grade" className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all font-medium">
+                  {[1,2,3,4,5,6,7].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+              </div>
+              <button 
+                onClick={() => {
+                  const nameEl = document.getElementById('setup-name') as HTMLInputElement;
+                  const gradeEl = document.getElementById('setup-grade') as HTMLSelectElement;
+                  if (nameEl.value) handleCreateProfile(nameEl.value, parseInt(gradeEl.value));
+                }}
+                className="w-full px-8 py-4 bg-zim-gradient text-white rounded-2xl font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-zim-gold/10 border-2 border-white/20"
+              >
+                Create Profile
+              </button>
+            </div>
+
             <button 
               onClick={handleLogout}
-              className="px-8 py-4 bg-zim-red text-white rounded-2xl font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-zim-red/20"
+              className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-zim-red transition-colors"
             >
-              Sign Out & Retry
+              Cancel & Sign Out
             </button>
           </div>
         ) : activeTab === 'home' && profile && (
