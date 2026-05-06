@@ -6,17 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StudentProfile, Subject, Achievement } from './types';
-import Onboarding from './components/Onboarding';
-import StudentHome from './components/StudentHome';
-import LearningSession from './components/LearningSession';
-import SessionResult from './components/SessionResult';
-import ResourceHub from './components/ResourceHub';
-import TeacherDashboard from './components/TeacherDashboard';
-import { api } from './lib/api';
-
-import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import { StudentProfile, Subject, Achievement } from './types';
 import { Auth } from './components/Auth';
 import StudentHome from './components/StudentHome';
 import LearningSession from './components/LearningSession';
