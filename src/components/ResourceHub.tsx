@@ -21,7 +21,7 @@ interface Resource {
   uploaded_at: string;
 }
 
-type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'saving' | 'complete' | 'idle';
+type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'saving' | 'summarizing' | 'complete' | 'idle';
 
 export default function ResourceHub() {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -29,13 +29,16 @@ export default function ResourceHub() {
   const [isAdding, setIsAdding] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>('idle');
+  const [processingProgress, setProcessingProgress] = useState(0);
   const [isSummarizing, setIsSummarizing] = useState<number | null>(null);
+  const [autoSummarize, setAutoSummarize] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubject, setFilterSubject] = useState<Subject | 'All'>('All');
   const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [newResource, setNewResource] = useState({
     title: '',
     content: '',
@@ -86,6 +89,7 @@ export default function ResourceHub() {
     e.preventDefault();
     setIsExtracting(true);
     setProcessingStage('uploading');
+    setProcessingProgress(15);
     
     try {
       const formData = new FormData();
@@ -93,12 +97,16 @@ export default function ResourceHub() {
       formData.append('subject', newResource.subject);
       formData.append('grade', newResource.grade.toString());
       
+      let finalContent = newResource.content;
+
       if (selectedFile) {
         formData.append('file', selectedFile);
         setProcessingStage('extracting');
+        setProcessingProgress(35);
       } else if (newResource.content) {
         formData.append('content', newResource.content);
         setProcessingStage('analyzing');
+        setProcessingProgress(35);
       } else {
         alert("Please provide content or upload a file");
         setIsExtracting(false);
@@ -107,23 +115,63 @@ export default function ResourceHub() {
       }
 
       setProcessingStage('saving');
-      await api.addResource(formData);
+      setProcessingProgress(60);
+      const result = await api.addResource(formData);
       
+      if (autoSummarize && result.id) {
+        setProcessingStage('summarizing');
+        setProcessingProgress(80);
+        
+        // We need to get the fresh resource to summarize it
+        const allRes = await api.getResources();
+        const fresh = allRes.find((r: any) => r.id === result.id);
+        
+        if (fresh) {
+          const summary = await summarizeDocument(fresh.content, fresh.subject, fresh.grade);
+          await api.updateResourceSummary(result.id, summary);
+        }
+      }
+
       setProcessingStage('complete');
+      setProcessingProgress(100);
+      
       setTimeout(() => {
         fetchResources();
         setIsAdding(false);
         setNewResource({ title: '', content: '', subject: 'English Language', grade: 3 });
         setSelectedFile(null);
         setProcessingStage('idle');
+        setProcessingProgress(0);
       }, 800);
     } catch (err: any) {
       console.error("Failed to add resource", err);
       const errorMessage = err instanceof Error ? err.message : String(err);
       alert(`Error uploading resource: ${errorMessage}`);
       setProcessingStage('idle');
+      setProcessingProgress(0);
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const findInternetResources = async () => {
+    setIsSearchingWeb(true);
+    try {
+      // Simulate/Request Gemini to find curriculum-aligned resources
+      const prompt = `Find 3 high-quality educational resources (websites, PDFs, or videos) for the Zimbabwean Grade ${newResource.grade} curriculum focusing on ${newResource.subject}. 
+      Return them as a JSON list with 'title', 'url', and 'description'.`;
+      
+      const response = await summarizeDocument(prompt, newResource.subject, newResource.grade);
+      // In a real app, we'd parse this and show suggestions
+      // For now, let's paste the suggestions into the content box
+      setNewResource({
+        ...newResource,
+        content: `Suggested Professional Resources Found:\n\n${response}\n\nYou can visit these sites or copy relevant sections here.`
+      });
+    } catch (err) {
+      console.error("Web search failed", err);
+    } finally {
+      setIsSearchingWeb(false);
     }
   };
 
@@ -440,26 +488,85 @@ export default function ResourceHub() {
                 </div>
               </div>
 
-              {!selectedFile && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Option 2: Paste Content / Text</label>
-                  <textarea 
-                    required={!selectedFile}
-                    value={newResource.content}
-                    onChange={e => setNewResource({...newResource, content: e.target.value})}
-                    rows={4}
-                    placeholder="Paste the text from the book here if you don't have a file..."
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                  />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option 2: Paste Content / AI Search</label>
+                  <button 
+                    type="button" 
+                    onClick={findInternetResources}
+                    disabled={isSearchingWeb}
+                    className="flex items-center space-x-1 text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  >
+                    {isSearchingWeb ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                    <span>AI Help Me Find</span>
+                  </button>
                 </div>
-              )}
+                <textarea 
+                  required={!selectedFile}
+                  value={newResource.content}
+                  onChange={e => setNewResource({...newResource, content: e.target.value})}
+                  rows={4}
+                  placeholder={isSearchingWeb ? "AI is finding resources..." : "Paste lesson plans, articles, or let AI find some for you..."}
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                />
+              </div>
 
-              <div className="pt-4 flex space-x-3">
+              {/* Progress Indicator */}
+              <AnimatePresence>
+                {isExtracting && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          {processingStage === 'summarizing' ? 'AI Summarization' : 'Document Processing'}
+                        </span>
+                        <span className="text-[9px] font-black text-zim-green">{processingProgress}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <motion.div 
+                          className="h-full bg-zim-green"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${processingProgress}%` }}
+                          transition={{ duration: 0.5 }}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center space-x-2">
+                        <Loader2 size={12} className="animate-spin text-zim-green" />
+                        <span className="text-[10px] font-bold text-slate-500 capitalize">
+                          {processingStage}... {processingStage === 'summarizing' ? 'Extracting core insights' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="pt-4 flex items-center space-x-3">
+                <button 
+                  type="button"
+                  disabled={isExtracting}
+                  onClick={() => {
+                    setAutoSummarize(!autoSummarize);
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-4 rounded-xl border-2 transition-all ${autoSummarize ? 'border-zim-gold bg-zim-gold/5 text-zim-gold' : 'border-slate-100 text-slate-400'}`}
+                >
+                  <Sparkles size={18} className={autoSummarize ? 'animate-pulse' : ''} />
+                  <div className="text-left">
+                    <p className="text-[8px] font-black uppercase tracking-widest leading-none">Auto-Digest</p>
+                    <p className="text-[10px] font-bold">{autoSummarize ? 'ON' : 'OFF'}</p>
+                  </div>
+                </button>
+
                 <button 
                   type="button"
                   disabled={isExtracting}
                   onClick={() => setIsAdding(false)}
-                  className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
