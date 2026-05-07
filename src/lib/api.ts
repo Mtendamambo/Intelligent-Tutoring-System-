@@ -166,6 +166,26 @@ export const api = {
         body: JSON.stringify({ role })
       });
       return await res.json();
+    },
+    resetPassword: async (id: number, password: string) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      return await res.json();
+    },
+    updateStatus: async (id: number, disabled: boolean) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ disabled })
+      });
+      return await res.json();
+    },
+    getLoginHistory: async (id: number) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/login-history`);
+      return await res.json();
     }
   },
 

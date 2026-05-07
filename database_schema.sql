@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `username` varchar(100) NOT NULL UNIQUE,
   `password` varchar(255) NOT NULL,
   `role` enum('student', 'teacher', 'admin') NOT NULL DEFAULT 'student',
+  `disabled` boolean DEFAULT FALSE,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

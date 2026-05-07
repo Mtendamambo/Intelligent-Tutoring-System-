@@ -30,6 +30,87 @@ async function startServer() {
       queueLimit: 0
     });
     console.log("Connected to MySQL Database");
+
+    // Basic Migration / Table & Column Check
+    try {
+      // Ensure tables exist
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          role ENUM('student', 'teacher', 'admin') DEFAULT 'student',
+          disabled BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS students (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT,
+          name VARCHAR(255) NOT NULL,
+          grade INT NOT NULL,
+          total_points INT DEFAULT 0,
+          streak INT DEFAULT 0,
+          indigenous_languages_level INT DEFAULT 1,
+          mathematics_level INT DEFAULT 1,
+          social_science_level INT DEFAULT 1,
+          agriculture_science_tech_level INT DEFAULT 1,
+          physical_education_level INT DEFAULT 1,
+          english_language_level INT DEFAULT 1,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+
+      const [columns]: any = await pool.query("SHOW COLUMNS FROM students");
+      const columnNames = columns.map((c: any) => c.Field);
+      
+      const requiredColumns = [
+        'indigenous_languages_level',
+        'mathematics_level',
+        'social_science_level',
+        'agriculture_science_tech_level',
+        'physical_education_level',
+        'english_language_level',
+        'total_points',
+        'streak'
+      ];
+
+      for (const col of requiredColumns) {
+        if (!columnNames.includes(col)) {
+          console.log(`Adding missing column ${col} to students table...`);
+          await pool.query(`ALTER TABLE students ADD COLUMN ${col} INT DEFAULT ${col.includes('level') ? 1 : 0}`);
+        }
+      }
+
+      if (!columnNames.includes('user_id')) {
+        console.log("Adding missing user_id column to students table...");
+        await pool.query("ALTER TABLE students ADD COLUMN user_id INT DEFAULT NULL");
+      }
+
+      // Migrations for User Management
+      const [userCols]: any = await pool.query("SHOW COLUMNS FROM users");
+      const userColNames = userCols.map((c: any) => c.Field);
+      
+      if (!userColNames.includes('disabled')) {
+        console.log("Adding disabled column to users table...");
+        await pool.query("ALTER TABLE users ADD COLUMN disabled BOOLEAN DEFAULT FALSE");
+      }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS login_history (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT,
+          login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ip_address VARCHAR(45),
+          user_agent TEXT,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+    } catch (migErr) {
+      console.error("Migration Error:", migErr);
+    }
   } catch (err) {
     console.error("Database connection failed:", err);
   }
@@ -78,8 +159,8 @@ async function startServer() {
       // Optimized single query with LEFT JOIN to fetch user and student data at once
       const [rows]: any = await pool.query(
         `SELECT 
-          u.id as user_id, u.username, u.role,
-          s.id as student_id, s.name, s.grade, s.total_points, s.streak,
+          u.id as userId, u.username, u.role, u.disabled,
+          s.id as studentId, s.name, s.grade, s.total_points, s.streak,
           s.indigenous_languages_level, s.mathematics_level, s.social_science_level,
           s.agriculture_science_tech_level, s.physical_education_level, s.english_language_level
         FROM users u
@@ -94,10 +175,22 @@ async function startServer() {
       }
 
       const row = rows[0];
+
+      if (row.disabled) {
+        return res.status(403).json({ error: "This account has been disabled. Please contact an administrator." });
+      }
+
+      // Record login history
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+      await pool.query(
+        "INSERT INTO login_history (user_id, ip_address, user_agent) VALUES (?, ?, ?)",
+        [row.userId, ip, ua]
+      );
       
       // Construct student profile only if role is student and profile exists
-      const studentProfile = (row.role === 'student' && row.student_id) ? {
-        id: row.student_id,
+      const studentProfile = (row.role === 'student' && row.studentId) ? {
+        id: row.studentId,
         name: row.name,
         grade: row.grade,
         totalPoints: row.total_points,
@@ -114,7 +207,7 @@ async function startServer() {
 
       res.json({ 
         user: { 
-          id: row.user_id, 
+          id: row.userId, 
           username: row.username, 
           role: row.role 
         },
@@ -130,7 +223,7 @@ async function startServer() {
   app.get("/api/admin/users", async (req, res) => {
     if (!pool) return res.status(500).json({ error: "No DB" });
     try {
-      const [rows]: any = await pool.query("SELECT id, username, role, created_at FROM users");
+      const [rows]: any = await pool.query("SELECT id, username, role, disabled, created_at FROM users");
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
@@ -157,6 +250,62 @@ async function startServer() {
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/reset-password", async (req, res) => {
+    const { id } = req.params;
+    const { password } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("UPDATE users SET password = ? WHERE id = ?", [password, id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/status", async (req, res) => {
+    const { id } = req.params;
+    const { disabled } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("UPDATE users SET disabled = ? WHERE id = ?", [disabled, id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.get("/api/admin/users/:id/login-history", async (req, res) => {
+    const { id } = req.params;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [rows]: any = await pool.query(
+        "SELECT * FROM login_history WHERE user_id = ? ORDER BY login_at DESC LIMIT 50",
+        [id]
+      );
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.get("/api/admin/debug-db", async (req, res) => {
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      const [tables]: any = await pool.query("SHOW TABLES");
+      const results: any = {};
+      
+      for (const tableRow of tables) {
+        const tableName = Object.values(tableRow)[0] as string;
+        const [columns]: any = await pool.query(`SHOW COLUMNS FROM ${tableName}`);
+        results[tableName] = columns;
+      }
+      
+      res.json(results);
+    } catch (err) {
+      res.status(500).json({ error: "DB Debug Error", details: err });
     }
   });
 
