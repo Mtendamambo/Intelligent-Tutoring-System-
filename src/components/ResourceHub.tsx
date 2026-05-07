@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Book, Upload, Trash2, Loader2, Plus, X, Search, Filter } from 'lucide-react';
+import { Book, Upload, Trash2, Loader2, Plus, X, Search, Filter, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../lib/api';
+import { summarizeDocument } from '../lib/gemini';
 import { Subject } from '../types';
 
 interface Resource {
@@ -14,6 +15,7 @@ interface Resource {
   content: string;
   subject: Subject;
   grade: number;
+  summary: string | null;
   uploaded_at: string;
 }
 
@@ -21,9 +23,13 @@ export default function ResourceHub() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubject, setFilterSubject] = useState<Subject | 'All'>('All');
   const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newResource, setNewResource] = useState({
     title: '',
     content: '',
@@ -32,12 +38,16 @@ export default function ResourceHub() {
   });
 
   useEffect(() => {
-    fetchResources();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchResources();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, filterSubject, filterGrade]);
 
   const fetchResources = async () => {
+    setIsLoading(true);
     try {
-      const data = await api.getResources();
+      const data = await api.getResources({ q: searchTerm });
       setResources(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch resources", err);
@@ -47,15 +57,64 @@ export default function ResourceHub() {
     }
   };
 
+  const handleSummarize = async (res: Resource) => {
+    setIsSummarizing(res.id);
+    try {
+      // Get full content first
+      const fullRes = await api.getResource(res.id);
+      const summary = await summarizeDocument(fullRes.title, fullRes.content);
+      await api.updateResourceSummary(res.id, summary);
+      
+      // Update local state
+      setResources(prev => prev.map(r => r.id === res.id ? { ...r, summary } : r));
+      setExpandedId(res.id);
+    } catch (err) {
+      console.error("Summarization failed", err);
+      alert("AI Summarization failed. Please try again.");
+    } finally {
+      setIsSummarizing(null);
+    }
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsExtracting(true);
     try {
-      await api.addResource(newResource);
+      const formData = new FormData();
+      formData.append('title', newResource.title);
+      formData.append('subject', newResource.subject);
+      formData.append('grade', newResource.grade.toString());
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      } else if (newResource.content) {
+        formData.append('content', newResource.content);
+      } else {
+        alert("Please provide content or upload a file");
+        setIsExtracting(false);
+        return;
+      }
+
+      await api.addResource(formData);
       fetchResources();
       setIsAdding(false);
       setNewResource({ title: '', content: '', subject: 'English Language', grade: 3 });
+      setSelectedFile(null);
     } catch (err) {
       console.error("Failed to add resource", err);
+      alert("Error uploading resource. Check file type and size.");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!newResource.title) {
+        setNewResource({ ...newResource, title: file.name.split('.')[0] });
+      }
     }
   };
 
@@ -70,11 +129,9 @@ export default function ResourceHub() {
   };
 
   const filteredResources = resources.filter(res => {
-    const matchesSearch = res.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          res.content.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSubject = filterSubject === 'All' || res.subject === filterSubject;
     const matchesGrade = filterGrade === 'All' || res.grade === filterGrade;
-    return matchesSearch && matchesSubject && matchesGrade;
+    return matchesSubject && matchesGrade;
   });
 
   return (
@@ -148,35 +205,73 @@ export default function ResourceHub() {
             </div>
           )}
           {filteredResources.map((res) => (
-            <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-start justify-between group transform transition-all hover:scale-[1.01] hover:shadow-md">
-              <div className="flex items-start space-x-4">
-                <div className="bg-zim-green/10 p-3 rounded-xl text-zim-green">
-                  <Book size={24} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">{res.title}</h3>
-                  <div className="flex items-center space-x-3 mt-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded text-slate-500">
-                      Grade {res.grade}
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-zim-gold/20 px-2 py-0.5 rounded text-zim-gold contrast-125 brightness-75">
-                      {res.subject}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium tracking-tight">
-                      {new Date(res.uploaded_at).toLocaleDateString()}
-                    </span>
+            <div key={res.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden transform transition-all hover:shadow-md">
+              <div className="p-5 flex items-start justify-between group">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-zim-green/10 p-3 rounded-xl text-zim-green">
+                    <Book size={24} />
                   </div>
-                  <p className="mt-3 text-sm text-slate-600 line-clamp-2 max-w-xl italic">
-                    "{res.content.substring(0, 150)}..."
-                  </p>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg">{res.title}</h3>
+                    <div className="flex items-center space-x-3 mt-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded text-slate-500">
+                        Grade {res.grade}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-zim-gold/20 px-2 py-0.5 rounded text-zim-gold contrast-125 brightness-75">
+                        {res.subject}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => handleSummarize(res)}
+                    disabled={isSummarizing === res.id}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${res.summary ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-blue-500'}`}
+                  >
+                    {isSummarizing === res.id ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    <span>{res.summary ? 'Update Summary' : 'AI Summarize'}</span>
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(res.id)}
+                    className="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50"
+                  >
+                    <Trash2 size={20} />
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={() => handleDelete(res.id)}
-                className="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 size={20} />
-              </button>
+
+              {/* Preview Content */}
+              <div className="px-5 pb-4">
+                <p className="text-sm text-slate-600 line-clamp-2 italic border-l-2 border-slate-100 pl-4 py-1">
+                  "{res.content.substring(0, 150)}..."
+                </p>
+                
+                {res.summary && (
+                  <button 
+                    onClick={() => setExpandedId(expandedId === res.id ? null : res.id)}
+                    className="mt-3 flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 outline-none"
+                  >
+                    <span>{expandedId === res.id ? 'Hide AI Digest' : 'View AI Digest'}</span>
+                    {expandedId === res.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                )}
+              </div>
+
+              {/* Expanded Summary */}
+              {expandedId === res.id && res.summary && (
+                <div className="bg-blue-50/50 border-t border-blue-100/50 p-6">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Sparkles size={18} className="text-blue-500" />
+                    <h4 className="text-sm font-black uppercase tracking-widest text-blue-600">AI-Powered Resource Digest</h4>
+                  </div>
+                  <div className="prose prose-sm max-w-none text-slate-700 leading-relaxed space-y-3">
+                    {res.summary.split('\n').map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -236,31 +331,76 @@ export default function ResourceHub() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Content / Text Extracted from Book</label>
-                <textarea 
-                  required
-                  value={newResource.content}
-                  onChange={e => setNewResource({...newResource, content: e.target.value})}
-                  rows={8}
-                  placeholder="Paste the text from the book here. The AI will use this as context for questions..."
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                />
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Option 1: Upload Document (PDF, DOCX, TXT)</label>
+                <div className={`relative border-2 border-dashed rounded-2xl p-8 transition-all ${selectedFile ? 'border-zim-green bg-zim-green/5' : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-200'}`}>
+                  <input 
+                    type="file" 
+                    accept=".pdf,.docx,.txt"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedFile ? 'bg-zim-green text-white' : 'bg-white text-slate-300 shadow-sm'}`}>
+                      <Upload size={24} />
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-sm font-bold ${selectedFile ? 'text-zim-green' : 'text-slate-600'}`}>
+                        {selectedFile ? selectedFile.name : 'Click or drag file to upload'}
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-widest">Supports PDF, DOCX up to 10MB</p>
+                    </div>
+                  </div>
+                  {selectedFile && (
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                      className="absolute top-2 right-2 p-1.5 bg-white rounded-lg shadow-sm text-slate-400 hover:text-red-500 transition-colors z-20"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {!selectedFile && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Option 2: Paste Content / Text</label>
+                  <textarea 
+                    required={!selectedFile}
+                    value={newResource.content}
+                    onChange={e => setNewResource({...newResource, content: e.target.value})}
+                    rows={4}
+                    placeholder="Paste the text from the book here if you don't have a file..."
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+              )}
 
               <div className="pt-4 flex space-x-3">
                 <button 
                   type="button"
+                  disabled={isExtracting}
                   onClick={() => setIsAdding(false)}
-                  className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-zim-green text-white px-6 py-4 rounded-xl font-bold hover:brightness-110 transition-colors shadow-lg shadow-zim-green/20 flex items-center justify-center space-x-2"
+                  disabled={isExtracting}
+                  className="flex-1 bg-zim-green text-white px-6 py-4 rounded-xl font-bold hover:brightness-110 transition-colors shadow-lg shadow-zim-green/20 flex items-center justify-center space-x-2 disabled:opacity-50"
                 >
-                  <Upload size={20} />
-                  <span>Upload Resource</span>
+                  {isExtracting ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      <span>{selectedFile ? 'Extracting Text...' : 'Uploading...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={20} />
+                      <span>Upload Resource</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

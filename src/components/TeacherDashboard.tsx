@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown, LogOut, Plus, Star } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown, LogOut, Plus, Star, Library, RefreshCw, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
+import ResourceHub from './ResourceHub';
 import { 
   BarChart, 
   Bar, 
@@ -85,10 +86,42 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     grade: 1
   });
   const [addError, setAddError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'roster' | 'resources'>('roster');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      const [studentData, logData, achievementData] = await Promise.all([
+        api.getTeacherStudents(),
+        api.getTeacherLogs(),
+        api.getTeacherAchievements()
+      ]);
+      setStudents(Array.isArray(studentData) ? studentData : []);
+      setLogs(Array.isArray(logData) ? logData : []);
+      setAchievements(Array.isArray(achievementData) ? achievementData : []);
+    } catch (err) {
+      console.error("Failed to fetch teacher data", err);
+      setStudents([]);
+      setLogs([]);
+      setAchievements([]);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // Auto refresh every 45 seconds for a "live" feel
+    const interval = setInterval(() => fetchData(true), 45000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    fetchData();
+  };
 
   const handleSelectStudent = (id: number) => {
     setSelectedStudentIds(prev => 
@@ -125,6 +158,20 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     setSelectedStudentIds([]);
   };
 
+  const handleDeleteStudent = async (id: number) => {
+    if (!confirm("Are you sure you want to remove this student account? This cannot be undone.")) return;
+    setIsLoading(true);
+    try {
+      await api.admin.deleteUser(id); // Reusing admin delete logic as it is functional
+      await fetchData();
+    } catch (err) {
+      console.error("Failed to delete student", err);
+      alert("Failed to delete student");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddError(null);
@@ -145,24 +192,8 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     }
   };
 
-  const fetchData = async () => {
-    try {
-      const [studentData, logData, achievementData] = await Promise.all([
-        api.getTeacherStudents(),
-        api.getTeacherLogs(),
-        api.getTeacherAchievements()
-      ]);
-      setStudents(Array.isArray(studentData) ? studentData : []);
-      setLogs(Array.isArray(logData) ? logData : []);
-      setAchievements(Array.isArray(achievementData) ? achievementData : []);
-    } catch (err) {
-      console.error("Failed to fetch teacher data", err);
-      setStudents([]);
-      setLogs([]);
-      setAchievements([]);
-    } finally {
-      setIsLoading(false);
-    }
+  const fetchData_REPLACED = async () => {
+    // This is replaced by the useCallback version above
   };
 
   const filteredStudents = students
@@ -354,25 +385,56 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>
-            <p className="text-[10px] font-black uppercase tracking-widest text-zim-green animate-pulse">Live Monitoring & Analytics</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-zim-green">Live Monitoring & Analytics</p>
+              <button 
+                onClick={handleManualRefresh}
+                title="Refresh Analytics"
+                className={`flex items-center space-x-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 hover:text-zim-green transition-colors ${isRefreshing ? 'opacity-50' : ''}`}
+              >
+                <RefreshCw size={10} className={isRefreshing ? 'animate-spin' : ''} />
+                <span>{isRefreshing ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+            </div>
           </div>
         </div>
         
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={() => setIsAddingStudent(true)}
-            className="px-6 py-3 bg-zim-green text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center shadow-lg shadow-zim-green/20"
-          >
-            <Plus size={16} className="mr-2" />
-            <span>Add New Student</span>
-          </button>
-          <button 
-            onClick={handleExportCSV}
-            className="px-6 py-3 bg-white border border-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center mb-1 group shadow-sm"
-          >
-            <Download size={16} className="mr-2 group-hover:scale-110 transition-transform" />
-            <span>Export Reports</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-slate-100 p-1 rounded-2xl flex items-center mr-4">
+            <button 
+              onClick={() => setActiveTab('roster')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center space-x-2 ${activeTab === 'roster' ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/10' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <Users size={16} />
+              <span>Learner Insights</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('resources')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center space-x-2 ${activeTab === 'resources' ? 'bg-white text-zim-green shadow-lg shadow-zim-green/10' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <Library size={16} />
+              <span>Resource Manager</span>
+            </button>
+          </div>
+
+          {activeTab === 'roster' && (
+            <>
+              <button 
+                onClick={() => setIsAddingStudent(true)}
+                className="px-6 py-3 bg-zim-green text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center shadow-lg shadow-zim-green/20"
+              >
+                <Plus size={16} className="mr-2" />
+                <span>Add New Student</span>
+              </button>
+              <button 
+                onClick={handleExportCSV}
+                className="px-6 py-3 bg-white border border-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center group shadow-sm"
+              >
+                <Download size={16} className="mr-2 group-hover:scale-110 transition-transform" />
+                <span>Export Reports</span>
+              </button>
+            </>
+          )}
           <button 
             onClick={onLogout}
             className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center space-x-2 shadow-xl shadow-slate-900/10"
@@ -383,8 +445,17 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
         </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <AnimatePresence mode="wait">
+        {activeTab === 'roster' ? (
+          <motion.div 
+            key="roster"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="bg-blue-50 p-2 rounded-xl text-blue-600"><Users size={20} /></div>
@@ -835,13 +906,23 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            api.awardBonusPoints(s.id, 10, "Teacher Quick Award").then(() => fetchData());
+                            api.awardBonusPoints(s.id, 10, "Teacher Quick Award").then(() => fetchData(true));
                           }}
                           className="p-2 bg-zim-green/10 text-zim-green rounded-lg hover:bg-zim-green hover:text-white transition-all group/btn flex items-center space-x-1"
                           title="Award 10 Bonus Points"
                         >
                           <Plus size={14} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[10px] font-black">+10</span>
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteStudent(s.id);
+                          }}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Remove Student"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -960,9 +1041,23 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
+    ) : (
+      <motion.div 
+        key="resources"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+      >
+        <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-xl shadow-slate-200/50">
+          <ResourceHub />
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
       {/* Student Detail Modal */}
       <AnimatePresence>
         {selectedStudent && (
@@ -1236,8 +1331,9 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
-        {/* Add Student Modal */}
+      {/* Add Student Modal */}
         <AnimatePresence>
           {isAddingStudent && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1341,7 +1437,6 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
             </div>
           )}
         </AnimatePresence>
-      </AnimatePresence>
     </div>
   );
 }

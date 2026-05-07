@@ -1,14 +1,22 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
+import multer from "multer";
+import mammoth from "mammoth";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Configure multer for memory storage
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 async function startServer() {
   const app = express();
@@ -108,6 +116,25 @@ async function startServer() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS resources (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          content LONGTEXT NOT NULL,
+          subject VARCHAR(255) NOT NULL,
+          grade INT NOT NULL,
+          summary LONGTEXT DEFAULT NULL,
+          uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      const [resCols]: any = await pool.query("SHOW COLUMNS FROM resources");
+      const resColNames = resCols.map((c: any) => c.Field);
+      if (!resColNames.includes('summary')) {
+        console.log("Adding summary column to resources table...");
+        await pool.query("ALTER TABLE resources ADD COLUMN summary LONGTEXT DEFAULT NULL");
+      }
     } catch (migErr) {
       console.error("Migration Error:", migErr);
     }
@@ -449,25 +476,97 @@ async function startServer() {
   // Resource Management API
   app.get("/api/resources", async (req, res) => {
     if (!pool) return res.status(500).json({ error: "No DB" });
+    const { q } = req.query;
     try {
-      const [rows]: any = await pool.query("SELECT * FROM resources ORDER BY uploaded_at DESC");
+      let query = "SELECT id, title, subject, grade, summary, uploaded_at, LEFT(content, 200) as content FROM resources";
+      let params: any[] = [];
+
+      if (q) {
+        query += " WHERE title LIKE ? OR content LIKE ? OR subject LIKE ?";
+        const searchTerm = `%${q}%`;
+        params = [searchTerm, searchTerm, searchTerm];
+      }
+
+      query += " ORDER BY uploaded_at DESC";
+      
+      const [rows]: any = await pool.query(query, params);
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
     }
   });
 
-  app.post("/api/resources", async (req, res) => {
-    const { title, content, subject, grade } = req.body;
+  app.get("/api/resources/:id", async (req, res) => {
+    const { id } = req.params;
     if (!pool) return res.status(500).json({ error: "No DB" });
     try {
-      await pool.query(
-        "INSERT INTO resources (title, content, subject, grade) VALUES (?, ?, ?, ?)",
-        [title, content, subject, grade]
-      );
+      const [rows]: any = await pool.query("SELECT * FROM resources WHERE id = ?", [id]);
+      if (rows.length === 0) return res.status(404).json({ error: "Resource not found" });
+      res.json(rows[0]);
+    } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.patch("/api/resources/:id/summary", async (req, res) => {
+    const { id } = req.params;
+    const { summary } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+    try {
+      await pool.query("UPDATE resources SET summary = ? WHERE id = ?", [summary, id]);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  async function extractTextFromBuffer(buffer: Buffer, mimeType: string): Promise<string> {
+    try {
+      if (mimeType === "application/pdf") {
+        const data = await pdf(buffer);
+        return data.text;
+      } else if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value;
+      } else if (mimeType === "text/plain") {
+        return buffer.toString("utf-8");
+      }
+      return "";
+    } catch (err) {
+      console.error("Extraction Error:", err);
+      return "";
+    }
+  }
+
+  app.post("/api/resources", upload.single("file"), async (req, res) => {
+    const { title, subject, grade, content: manualContent } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+
+    try {
+      let finalContent = manualContent || "";
+
+      if ((req as any).file) {
+        console.log("Processing uploaded file:", (req as any).file.originalname);
+        const extracted = await extractTextFromBuffer((req as any).file.buffer, (req as any).file.mimetype);
+        if (extracted) {
+          finalContent = extracted;
+        } else if (!finalContent) {
+          return res.status(400).json({ error: "Could not extract text from file" });
+        }
+      }
+
+      if (!finalContent) {
+        return res.status(400).json({ error: "No content provided" });
+      }
+
+      await pool.query(
+        "INSERT INTO resources (title, content, subject, grade) VALUES (?, ?, ?, ?)",
+        [title || (req as any).file?.originalname || "Untitled", finalContent, subject, grade]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Resource Upload Error:", err);
+      res.status(500).json({ error: "DB Error: " + err.message });
     }
   });
 

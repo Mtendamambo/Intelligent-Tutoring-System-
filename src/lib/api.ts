@@ -55,17 +55,37 @@ export const api = {
     });
   },
 
-  getResources: async () => {
-    const res = await fetch(`${API_BASE}/resources`);
+  getResources: async (params?: { q?: string }) => {
+    const url = new URL(`${API_BASE}/resources`);
+    if (params?.q) url.searchParams.append('q', params.q);
+    const res = await fetch(url.toString());
+    return await res.json();
+  },
+  getResource: async (id: number) => {
+    const res = await fetch(`${API_BASE}/resources/${id}`);
+    return await res.json();
+  },
+  updateResourceSummary: async (id: number, summary: string) => {
+    const res = await fetch(`${API_BASE}/resources/${id}/summary`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ summary }),
+    });
     return await res.json();
   },
 
-  addResource: async (resource: { title: string; content: string; subject: string; grade: number }) => {
-    await fetch(`${API_BASE}/resources`, {
+  addResource: async (resource: any) => {
+    const isFormData = resource instanceof FormData;
+    const options: RequestInit = {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(resource),
-    });
+      body: isFormData ? resource : JSON.stringify(resource),
+    };
+    
+    if (!isFormData) {
+      options.headers = { "Content-Type": "application/json" };
+    }
+
+    await fetch(`${API_BASE}/resources`, options);
   },
 
   deleteResource: async (id: number) => {

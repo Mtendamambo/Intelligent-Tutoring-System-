@@ -106,14 +106,25 @@ export async function getFeedback(question: Question, studentAnswer: string, isC
 }
 
 export async function generateTopicSummary(subject: Subject, grade: number, topic: string): Promise<string> {
-   const prompt = `
+  // Fetch relevant local resources to use as context
+  let context = "";
+  try {
+    context = await api.getAiContext(subject, grade);
+  } catch (err) {
+    console.warn("Could not fetch resources context", err);
+  }
+
+  const prompt = `
     You are an expert Zimbabwean Primary School teacher.
     Provide a very brief, engaging 3-sentence "Lesson Summary" for a Grade ${grade} student on the topic: "${topic}" in the subject of ${subject}.
     
+    ${context ? `Use the following reference material to base your summary on:\n---START REFERENCE---\n${context}\n---END REFERENCE---` : ""}
+
     Guidelines:
     - Use clear, simple language suitable for a child.
     - Mention one interesting fact relevant to Zimbabwe.
     - End with a motivational sentence encouraging them to start the quiz.
+    - If reference material is provided, prioritize information from it.
   `;
 
   try {
@@ -124,5 +135,31 @@ export async function generateTopicSummary(subject: Subject, grade: number, topi
     return result.text || "Let's review what we know about this topic and do our best!";
   } catch (error) {
     return "Ready to test your knowledge? Let's dive into some practice questions!";
+  }
+}
+
+export async function summarizeDocument(title: string, content: string): Promise<string> {
+  const prompt = `
+    Summarize the following educational material titled "${title}".
+    The summary should be structured for a teacher as a "Resource Digest" and include:
+    1. A high-level overview of the document (2-3 sentences).
+    2. 3-5 main educational points or learning objectives covered.
+    3. How this resource specifically relates to the Zimbabwean primary curriculum if applicable.
+    
+    CONTENT:
+    ${content.substring(0, 30000)} // Limiting to 30k chars for safety
+    
+    Use professional but accessible language. Keep it concise.
+  `;
+
+  try {
+    const result = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt
+    });
+    return result.text || "Could not generate summary.";
+  } catch (error) {
+    console.error("Summarization Error:", error);
+    return "Error generating AI summary.";
   }
 }
