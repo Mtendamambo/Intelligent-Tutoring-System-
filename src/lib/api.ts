@@ -56,7 +56,7 @@ export const api = {
   },
 
   getResources: async (params?: { q?: string }) => {
-    const url = new URL(`${API_BASE}/resources`);
+    const url = new URL(window.location.origin + `${API_BASE}/resources`);
     if (params?.q) url.searchParams.append('q', params.q);
     const res = await fetch(url.toString());
     return await res.json();
@@ -85,7 +85,12 @@ export const api = {
       options.headers = { "Content-Type": "application/json" };
     }
 
-    await fetch(`${API_BASE}/resources`, options);
+    const res = await fetch(`${API_BASE}/resources`, options);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `Upload failed with status ${res.status}`);
+    }
+    return await res.json();
   },
 
   deleteResource: async (id: number) => {

@@ -4,7 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Book, Upload, Trash2, Loader2, Plus, X, Search, Filter, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Book, Upload, Trash2, Loader2, Plus, X, Search, Filter, Sparkles, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import { summarizeDocument } from '../lib/gemini';
 import { Subject } from '../types';
@@ -19,17 +21,21 @@ interface Resource {
   uploaded_at: string;
 }
 
+type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'saving' | 'complete' | 'idle';
+
 export default function ResourceHub() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>('idle');
   const [isSummarizing, setIsSummarizing] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubject, setFilterSubject] = useState<Subject | 'All'>('All');
   const [filterGrade, setFilterGrade] = useState<number | 'All'>('All');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [newResource, setNewResource] = useState({
     title: '',
     content: '',
@@ -79,6 +85,8 @@ export default function ResourceHub() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsExtracting(true);
+    setProcessingStage('uploading');
+    
     try {
       const formData = new FormData();
       formData.append('title', newResource.title);
@@ -87,22 +95,33 @@ export default function ResourceHub() {
       
       if (selectedFile) {
         formData.append('file', selectedFile);
+        setProcessingStage('extracting');
       } else if (newResource.content) {
         formData.append('content', newResource.content);
+        setProcessingStage('analyzing');
       } else {
         alert("Please provide content or upload a file");
         setIsExtracting(false);
+        setProcessingStage('idle');
         return;
       }
 
+      setProcessingStage('saving');
       await api.addResource(formData);
-      fetchResources();
-      setIsAdding(false);
-      setNewResource({ title: '', content: '', subject: 'English Language', grade: 3 });
-      setSelectedFile(null);
-    } catch (err) {
+      
+      setProcessingStage('complete');
+      setTimeout(() => {
+        fetchResources();
+        setIsAdding(false);
+        setNewResource({ title: '', content: '', subject: 'English Language', grade: 3 });
+        setSelectedFile(null);
+        setProcessingStage('idle');
+      }, 800);
+    } catch (err: any) {
       console.error("Failed to add resource", err);
-      alert("Error uploading resource. Check file type and size.");
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert(`Error uploading resource: ${errorMessage}`);
+      setProcessingStage('idle');
     } finally {
       setIsExtracting(false);
     }
@@ -243,35 +262,79 @@ export default function ResourceHub() {
 
               {/* Preview Content */}
               <div className="px-5 pb-4">
-                <p className="text-sm text-slate-600 line-clamp-2 italic border-l-2 border-slate-100 pl-4 py-1">
-                  "{res.content.substring(0, 150)}..."
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-600 line-clamp-2 italic border-l-2 border-slate-100 pl-4 py-1 flex-1">
+                    "{res.content.substring(0, 150)}..."
+                  </p>
+                  
+                  {res.summary && (
+                    <div className="ml-4 flex items-center space-x-1 text-[10px] font-black uppercase tracking-widest text-zim-gold bg-zim-gold/10 px-2 py-1 rounded">
+                      <Sparkles size={10} />
+                      <span>Has Digest</span>
+                    </div>
+                  )}
+                </div>
                 
                 {res.summary && (
                   <button 
                     onClick={() => setExpandedId(expandedId === res.id ? null : res.id)}
-                    className="mt-3 flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 outline-none"
+                    className="mt-3 flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 outline-none group/toggle px-2 py-1 hover:bg-blue-50 rounded-lg transition-all"
                   >
                     <span>{expandedId === res.id ? 'Hide AI Digest' : 'View AI Digest'}</span>
-                    {expandedId === res.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <motion.div
+                      animate={{ rotate: expandedId === res.id ? 180 : 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ChevronDown size={12} />
+                    </motion.div>
                   </button>
                 )}
               </div>
 
               {/* Expanded Summary */}
-              {expandedId === res.id && res.summary && (
-                <div className="bg-blue-50/50 border-t border-blue-100/50 p-6">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Sparkles size={18} className="text-blue-500" />
-                    <h4 className="text-sm font-black uppercase tracking-widest text-blue-600">AI-Powered Resource Digest</h4>
-                  </div>
-                  <div className="prose prose-sm max-w-none text-slate-700 leading-relaxed space-y-3">
-                    {res.summary.split('\n').map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {expandedId === res.id && res.summary && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-blue-50/50 border-t border-blue-100/50 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white">
+                            <Sparkles size={16} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">AI-Powered Resource Digest</h4>
+                            <p className="text-[10px] text-blue-400 font-medium">Synthesized from the uploaded content</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setExpandedId(null)}
+                          className="text-blue-300 hover:text-blue-500 transition-colors p-1"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      
+                      <div className="markdown-body prose prose-sm max-w-none text-slate-700">
+                        <ReactMarkdown>
+                          {res.summary}
+                        </ReactMarkdown>
+                      </div>
+
+                      <div className="mt-6 flex items-center justify-end">
+                        <div className="text-[9px] font-bold text-slate-400 bg-white border border-slate-100 px-2 py-1 rounded">
+                          BETA: Verify AI insights against source text
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
         </div>
@@ -332,20 +395,35 @@ export default function ResourceHub() {
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Option 1: Upload Document (PDF, DOCX, TXT)</label>
-                <div className={`relative border-2 border-dashed rounded-2xl p-8 transition-all ${selectedFile ? 'border-zim-green bg-zim-green/5' : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-200'}`}>
+                <div 
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      if (!newResource.title) {
+                        setNewResource({ ...newResource, title: file.name.split('.')[0] });
+                      }
+                    }
+                  }}
+                  className={`relative border-2 border-dashed rounded-2xl p-8 transition-all ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : selectedFile ? 'border-zim-green bg-zim-green/5' : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-200'}`}
+                >
                   <input 
                     type="file" 
                     accept=".pdf,.docx,.txt"
                     onChange={handleFileChange}
                     className="absolute inset-0 opacity-0 cursor-pointer z-10"
                   />
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedFile ? 'bg-zim-green text-white' : 'bg-white text-slate-300 shadow-sm'}`}>
+                  <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isDragging ? 'bg-blue-500 text-white animate-pulse' : selectedFile ? 'bg-zim-green text-white' : 'bg-white text-slate-300 shadow-sm'}`}>
                       <Upload size={24} />
                     </div>
                     <div className="text-center">
-                      <p className={`text-sm font-bold ${selectedFile ? 'text-zim-green' : 'text-slate-600'}`}>
-                        {selectedFile ? selectedFile.name : 'Click or drag file to upload'}
+                      <p className={`text-sm font-bold transition-colors ${isDragging ? 'text-blue-600' : selectedFile ? 'text-zim-green' : 'text-slate-600'}`}>
+                        {isDragging ? 'Drop file now' : selectedFile ? selectedFile.name : 'Click or drag file to upload'}
                       </p>
                       <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-widest">Supports PDF, DOCX up to 10MB</p>
                     </div>
@@ -388,19 +466,32 @@ export default function ResourceHub() {
                 <button 
                   type="submit"
                   disabled={isExtracting}
-                  className="flex-1 bg-zim-green text-white px-6 py-4 rounded-xl font-bold hover:brightness-110 transition-colors shadow-lg shadow-zim-green/20 flex items-center justify-center space-x-2 disabled:opacity-50"
+                  className="flex-1 bg-zim-green text-white px-6 py-4 rounded-xl font-bold hover:brightness-110 transition-all shadow-lg shadow-zim-green/20 flex items-center justify-center space-x-2 disabled:opacity-80 relative overflow-hidden"
                 >
-                  {isExtracting ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      <span>{selectedFile ? 'Extracting Text...' : 'Uploading...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={20} />
-                      <span>Upload Resource</span>
-                    </>
-                  )}
+                  <AnimatePresence mode="wait">
+                    {isExtracting ? (
+                      <motion.div 
+                        key={processingStage}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -20, opacity: 0 }}
+                        className="flex items-center space-x-3"
+                      >
+                        <Loader2 size={20} className="animate-spin" />
+                        <span className="capitalize">{processingStage}...</span>
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="idle"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="flex items-center space-x-2"
+                      >
+                        <Upload size={20} />
+                        <span>Upload Resource</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </button>
               </div>
             </form>

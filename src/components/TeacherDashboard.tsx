@@ -8,6 +8,7 @@ import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Awar
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import ResourceHub from './ResourceHub';
+import { Subject, StudentProfile } from '../types';
 import { 
   BarChart, 
   Bar, 
@@ -97,9 +98,16 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
         api.getTeacherLogs(),
         api.getTeacherAchievements()
       ]);
-      setStudents(Array.isArray(studentData) ? studentData : []);
+      const fetchedStudents = Array.isArray(studentData) ? studentData : [];
+      setStudents(fetchedStudents);
       setLogs(Array.isArray(logData) ? logData : []);
       setAchievements(Array.isArray(achievementData) ? achievementData : []);
+      
+      // Sync selected student if open
+      if (selectedStudent) {
+        const updated = fetchedStudents.find((s: StudentSummary) => s.id === selectedStudent.id);
+        if (updated) setSelectedStudent(updated);
+      }
     } catch (err) {
       console.error("Failed to fetch teacher data", err);
       setStudents([]);
@@ -109,7 +117,14 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [selectedStudent]);
+
+  const optimisticUpdateStudent = (studentId: number, updater: (s: StudentSummary) => StudentSummary) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? updater(s) : s));
+    if (selectedStudent?.id === studentId) {
+      setSelectedStudent(prev => prev ? updater(prev) : null);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -140,15 +155,48 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const handleBulkAward = async (points: number) => {
     if (selectedStudentIds.length === 0) return;
     
-    setIsLoading(true);
+    // Optimistic local update
+    selectedStudentIds.forEach(id => {
+      optimisticUpdateStudent(id, s => ({ ...s, totalPoints: s.totalPoints + points }));
+    });
+
     try {
       await Promise.all(selectedStudentIds.map(id => api.awardBonusPoints(id, points, "Teacher Award")));
-      await fetchData();
+      await fetchData(true); // Silent refresh to sync with server
       setSelectedStudentIds([]);
     } catch (err) {
       console.error("Failed to award points", err);
-    } finally {
-      setIsLoading(false);
+      await fetchData(); // Rollback/Resync on error
+    }
+  };
+
+  const handleUpdateStudentLevel = async (studentId: number, subject: string, delta: number) => {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const currentLevel = student.level[subject] || 1;
+    const newLevel = Math.max(1, Math.min(10, currentLevel + delta));
+    
+    if (newLevel === currentLevel) return;
+
+    const updatedLevels = { ...student.level, [subject]: newLevel };
+
+    // Optimistic update
+    optimisticUpdateStudent(studentId, s => ({ ...s, level: updatedLevels }));
+
+    try {
+      await api.updateProgress({
+        name: student.name,
+        grade: student.grade,
+        streak: student.streak,
+        totalPoints: student.totalPoints,
+        id: student.id,
+        level: updatedLevels as Record<Subject, number>
+      });
+      await fetchData(true);
+    } catch (err) {
+      console.error("Failed to update level", err);
+      await fetchData(); // Rollback
     }
   };
 
@@ -906,6 +954,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            optimisticUpdateStudent(s.id, st => ({ ...st, totalPoints: st.totalPoints + 10 }));
                             api.awardBonusPoints(s.id, 10, "Teacher Quick Award").then(() => fetchData(true));
                           }}
                           className="p-2 bg-zim-green/10 text-zim-green rounded-lg hover:bg-zim-green hover:text-white transition-all group/btn flex items-center space-x-1"
@@ -1168,7 +1217,27 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                        {getSubjectProficiency(selectedStudent.level).map(s => (
                          <div key={s.fullSubject} className="flex items-center justify-between px-3 py-1.5 bg-slate-50 rounded-xl">
                             <span className="text-[9px] font-bold text-slate-500 truncate mr-2">{s.subject}</span>
-                            <span className="text-[10px] font-black text-blue-600">Lvl {s.value}</span>
+                            <div className="flex items-center space-x-2">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStudentLevel(selectedStudent.id, s.fullSubject, -1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <ChevronDown size={12} />
+                              </button>
+                              <span className="text-[10px] font-black text-blue-600 min-w-[32px] text-center">Lvl {s.value}</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStudentLevel(selectedStudent.id, s.fullSubject, 1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-400 hover:text-zim-green transition-colors"
+                              >
+                                <ChevronUp size={12} />
+                              </button>
+                            </div>
                          </div>
                        ))}
                     </div>
@@ -1210,13 +1279,27 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                 </div>
               </div>
               
-              {/* Footer */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100">
+              {/* Footer / Actions */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center gap-4">
+                 <div className="flex-1 flex gap-2">
+                   {[10, 20, 50].map(pts => (
+                     <button
+                       key={pts}
+                       onClick={() => {
+                         optimisticUpdateStudent(selectedStudent.id, s => ({ ...s, totalPoints: s.totalPoints + pts }));
+                         api.awardBonusPoints(selectedStudent.id, pts, "Teacher Award").then(() => fetchData(true));
+                       }}
+                       className="flex-1 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors"
+                     >
+                       +{pts} XP
+                     </button>
+                   ))}
+                 </div>
                  <button 
                   onClick={() => setSelectedStudent(null)}
-                  className="w-full py-4 rounded-2xl bg-slate-200 text-slate-600 font-black uppercase tracking-widest hover:bg-slate-300 transition-colors"
+                  className="px-8 py-3 rounded-xl bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-colors"
                  >
-                   Return to Dashboard
+                   Close Profile
                  </button>
               </div>
             </motion.div>

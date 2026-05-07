@@ -539,34 +539,65 @@ async function startServer() {
   }
 
   app.post("/api/resources", upload.single("file"), async (req, res) => {
+    console.log("POST /api/resources called");
+    console.log("Body metadata:", { 
+      title: req.body.title, 
+      subject: req.body.subject, 
+      grade: req.body.grade,
+      hasManualContent: !!req.body.content
+    });
+    console.log("File metadata:", (req as any).file ? {
+      name: (req as any).file.originalname,
+      mimetype: (req as any).file.mimetype,
+      size: (req as any).file.size
+    } : "No file");
+
     const { title, subject, grade, content: manualContent } = req.body;
-    if (!pool) return res.status(500).json({ error: "No DB" });
+    if (!pool) return res.status(500).json({ error: "No Database Connection" });
 
     try {
       let finalContent = manualContent || "";
 
       if ((req as any).file) {
-        console.log("Processing uploaded file:", (req as any).file.originalname);
-        const extracted = await extractTextFromBuffer((req as any).file.buffer, (req as any).file.mimetype);
-        if (extracted) {
-          finalContent = extracted;
-        } else if (!finalContent) {
-          return res.status(400).json({ error: "Could not extract text from file" });
+        const file = (req as any).file;
+        console.log(`Processing file: ${file.originalname} (${file.mimetype})`);
+        
+        try {
+          const extracted = await extractTextFromBuffer(file.buffer, file.mimetype);
+          if (extracted && extracted.trim().length > 0) {
+            finalContent = extracted;
+            console.log(`Extraction successful. Length: ${finalContent.length} characters`);
+          } else if (!finalContent) {
+            console.error("Extraction returned empty content and no manual content provided");
+            return res.status(400).json({ error: "Could not extract any readable text from the provided file. Please ensure it's not a scanned image or try copying the text manually." });
+          }
+        } catch (extractErr: any) {
+          console.error("Text extraction failed:", extractErr);
+          if (!finalContent) {
+            return res.status(400).json({ error: "Failed to process the document: " + extractErr.message });
+          }
         }
       }
 
-      if (!finalContent) {
-        return res.status(400).json({ error: "No content provided" });
+      if (!finalContent || finalContent.trim().length === 0) {
+        return res.status(400).json({ error: "No content was provided. Please upload a file or paste text." });
       }
 
-      await pool.query(
+      const resourceTitle = title || (req as any).file?.originalname || "Untitled Resource";
+      const gradeNum = parseInt(grade as string) || 3;
+      
+      console.log(`Saving to database: ${resourceTitle} for Grade ${gradeNum} - ${subject}`);
+
+      const [result]: any = await pool.query(
         "INSERT INTO resources (title, content, subject, grade) VALUES (?, ?, ?, ?)",
-        [title || (req as any).file?.originalname || "Untitled", finalContent, subject, grade]
+        [resourceTitle, finalContent, subject, gradeNum]
       );
-      res.json({ success: true });
+      
+      console.log("Resource saved with ID:", result.insertId);
+      res.json({ success: true, id: result.insertId });
     } catch (err: any) {
-      console.error("Resource Upload Error:", err);
-      res.status(500).json({ error: "DB Error: " + err.message });
+      console.error("Critical Resource Upload Error:", err);
+      res.status(500).json({ error: "Internal Server Error during resource storage: " + err.message });
     }
   });
 
@@ -691,6 +722,15 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // Global Error Handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Global Error:", err);
+    res.status(err.status || 500).json({
+      error: err.message || "Internal Server Error",
+      details: process.env.NODE_ENV === "development" ? err : undefined
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
