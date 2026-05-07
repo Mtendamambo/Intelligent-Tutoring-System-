@@ -10,6 +10,16 @@ interface AuthProps {
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState<'student' | 'teacher' | 'admin'>('student');
+
+  const toggleAuthMode = () => {
+    const nextLoginState = !isLogin;
+    setIsLogin(nextLoginState);
+    if (!nextLoginState) {
+      setRole('teacher'); // Default to teacher for registration
+    } else {
+      setRole('student'); // Default to student for login
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -97,7 +107,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {!isLogin && (
               <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                {(['student', 'teacher', 'admin'] as const).map((r) => (
+                {(['teacher', 'admin'] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -204,14 +214,19 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               )}
             </button>
 
-            <div className="pt-4 text-center">
+            <div className="pt-4 text-center space-y-4">
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={toggleAuthMode}
                 className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-zim-red transition-colors"
               >
                 {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
               </button>
+              {isLogin && (
+                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.2em]">
+                  Student accounts are managed by teachers
+                </p>
+              )}
             </div>
           </form>
         </div>

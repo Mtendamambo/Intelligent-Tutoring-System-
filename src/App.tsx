@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, GraduationCap } from 'lucide-react';
 import { StudentProfile, Subject, Achievement } from './types';
 import { Auth } from './components/Auth';
 import StudentHome from './components/StudentHome';
@@ -18,6 +18,7 @@ import { api } from './lib/api';
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [setupData, setSetupData] = useState({ name: '', grade: 1 });
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [activeTab, setActiveTab] = useState<'home' | 'session' | 'result' | 'resources'>('home');
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
@@ -180,22 +181,25 @@ export default function App() {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Your Full Name</label>
                 <input 
                   type="text" 
-                  id="setup-name"
+                  value={setupData.name}
+                  onChange={(e) => setSetupData({ ...setupData, name: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all placeholder:text-slate-300 font-medium"
                   placeholder="e.g. Tendai Moyo"
                 />
               </div>
               <div className="text-left">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Grade</label>
-                <select id="setup-grade" className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all font-medium">
+                <select 
+                  value={setupData.grade}
+                  onChange={(e) => setSetupData({ ...setupData, grade: parseInt(e.target.value) })}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none transition-all font-medium"
+                >
                   {[1,2,3,4,5,6,7].map(g => <option key={g} value={g}>Grade {g}</option>)}
                 </select>
               </div>
               <button 
                 onClick={() => {
-                  const nameEl = document.getElementById('setup-name') as HTMLInputElement;
-                  const gradeEl = document.getElementById('setup-grade') as HTMLSelectElement;
-                  if (nameEl.value) handleCreateProfile(nameEl.value, parseInt(gradeEl.value));
+                  if (setupData.name) handleCreateProfile(setupData.name, setupData.grade);
                 }}
                 className="w-full px-8 py-4 bg-zim-gradient text-white rounded-2xl font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-zim-gold/10 border-2 border-white/20"
               >

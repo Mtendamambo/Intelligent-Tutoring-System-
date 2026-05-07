@@ -75,42 +75,49 @@ async function startServer() {
     if (!pool) return res.status(500).json({ error: "No DB" });
 
     try {
-      const [users]: any = await pool.query(
-        "SELECT * FROM users WHERE username = ? AND password = ?",
+      // Optimized single query with LEFT JOIN to fetch user and student data at once
+      const [rows]: any = await pool.query(
+        `SELECT 
+          u.id as user_id, u.username, u.role,
+          s.id as student_id, s.name, s.grade, s.total_points, s.streak,
+          s.indigenous_languages_level, s.mathematics_level, s.social_science_level,
+          s.agriculture_science_tech_level, s.physical_education_level, s.english_language_level
+        FROM users u
+        LEFT JOIN students s ON u.id = s.user_id
+        WHERE u.username = ? AND u.password = ?
+        LIMIT 1`,
         [username, password]
       );
 
-      if (users.length === 0) {
+      if (rows.length === 0) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      const user = users[0];
-      let studentProfile = null;
-
-      if (user.role === 'student') {
-        const [students]: any = await pool.query("SELECT * FROM students WHERE user_id = ?", [user.id]);
-        if (students.length > 0) {
-          const s = students[0];
-          studentProfile = {
-            id: s.id,
-            name: s.name,
-            grade: s.grade,
-            totalPoints: s.total_points,
-            streak: s.streak,
-            level: {
-              'Indigenous Languages': s.indigenous_languages_level,
-              'Mathematics': s.mathematics_level,
-              'Social Science': s.social_science_level,
-              'Agriculture, Science and Technology': s.agriculture_science_tech_level,
-              'Physical Education': s.physical_education_level,
-              'English Language': s.english_language_level
-            }
-          };
+      const row = rows[0];
+      
+      // Construct student profile only if role is student and profile exists
+      const studentProfile = (row.role === 'student' && row.student_id) ? {
+        id: row.student_id,
+        name: row.name,
+        grade: row.grade,
+        totalPoints: row.total_points,
+        streak: row.streak,
+        level: {
+          'Indigenous Languages': row.indigenous_languages_level,
+          'Mathematics': row.mathematics_level,
+          'Social Science': row.social_science_level,
+          'Agriculture, Science and Technology': row.agriculture_science_tech_level,
+          'Physical Education': row.physical_education_level,
+          'English Language': row.english_language_level
         }
-      }
+      } : null;
 
       res.json({ 
-        user: { id: user.id, username: user.username, role: user.role },
+        user: { 
+          id: row.user_id, 
+          username: row.username, 
+          role: row.role 
+        },
         studentProfile
       });
     } catch (err: any) {
@@ -396,6 +403,28 @@ async function startServer() {
       `);
       res.json(rows);
     } catch (err) {
+      res.status(500).json({ error: "DB Error" });
+    }
+  });
+
+  app.post("/api/student/:id/award", async (req, res) => {
+    const { id } = req.params;
+    const { points, reason } = req.body;
+    if (!pool) return res.status(500).json({ error: "No DB" });
+
+    try {
+      await pool.getConnection(); // Check connection
+      await pool.query("UPDATE students SET total_points = total_points + ? WHERE id = ?", [points, id]);
+      
+      // Optionally log this as a performance entry or separate award log
+      await pool.query(
+        "INSERT INTO performance_logs (student_id, subject, correct, total) VALUES (?, ?, ?, ?)",
+        [id, reason || "Bonus Points", points, points]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Award Error:", err);
       res.status(500).json({ error: "DB Error" });
     }
   });

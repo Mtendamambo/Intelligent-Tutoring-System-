@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
+import { Users, BarChart3, Clock, TrendingUp, Search, Download, Loader2, X, Award, History, BookOpen, Target, ArrowUpDown, ChevronUp, ChevronDown, LogOut, Plus, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import { 
@@ -77,6 +77,14 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [searchTermLogs, setSearchTermLogs] = useState('');
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [newStudentData, setNewStudentData] = useState({
+    username: '',
+    password: '',
+    name: '',
+    grade: 1
+  });
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -96,16 +104,45 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     }
   };
 
-  const handleBulkAward = (points: number) => {
-    // In a real app, this would be an API call
-    alert(`Awarding ${points} XP to ${selectedStudentIds.length} students: ${selectedStudentIds.join(', ')}`);
-    setSelectedStudentIds([]);
+  const handleBulkAward = async (points: number) => {
+    if (selectedStudentIds.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      await Promise.all(selectedStudentIds.map(id => api.awardBonusPoints(id, points, "Teacher Award")));
+      await fetchData();
+      setSelectedStudentIds([]);
+    } catch (err) {
+      console.error("Failed to award points", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBulkAssign = (subject: string) => {
     // In a real app, this would be an API call
     alert(`Assigning ${subject} module to ${selectedStudentIds.length} students`);
     setSelectedStudentIds([]);
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    setIsLoading(true);
+
+    try {
+      await api.register({
+        ...newStudentData,
+        role: 'student'
+      });
+      setIsAddingStudent(false);
+      setNewStudentData({ username: '', password: '', name: '', grade: 1 });
+      await fetchData();
+    } catch (err: any) {
+      setAddError(err.message || 'Failed to create student account');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchData = async () => {
@@ -322,6 +359,13 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
         </div>
         
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => setIsAddingStudent(true)}
+            className="px-6 py-3 bg-zim-green text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center shadow-lg shadow-zim-green/20"
+          >
+            <Plus size={16} className="mr-2" />
+            <span>Add New Student</span>
+          </button>
           <button 
             onClick={handleExportCSV}
             className="px-6 py-3 bg-white border border-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center mb-1 group shadow-sm"
@@ -710,6 +754,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                     </div>
                   </th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Last Seen</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -785,6 +830,21 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                       <span className="text-[10px] uppercase">Days</span>
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            api.awardBonusPoints(s.id, 10, "Teacher Quick Award").then(() => fetchData());
+                          }}
+                          className="p-2 bg-zim-green/10 text-zim-green rounded-lg hover:bg-zim-green hover:text-white transition-all group/btn flex items-center space-x-1"
+                          title="Award 10 Bonus Points"
+                        >
+                          <Plus size={14} className="group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-[10px] font-black">+10</span>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1176,6 +1236,111 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
             </motion.div>
           </div>
         )}
+
+        {/* Add Student Modal */}
+        <AnimatePresence>
+          {isAddingStudent && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsAddingStudent(false)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+              />
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="relative w-full max-w-md bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden"
+              >
+                <div className="bg-zim-gradient p-8 text-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-2xl font-black uppercase tracking-tighter">Add New Learner</h2>
+                    <button 
+                      onClick={() => setIsAddingStudent(false)}
+                      className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <p className="text-white/80 text-sm font-medium">Create a new student account and profile.</p>
+                </div>
+
+                <form onSubmit={handleAddStudent} className="p-8 space-y-5">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Login Username</label>
+                      <input 
+                        type="text"
+                        required
+                        value={newStudentData.username}
+                        onChange={e => setNewStudentData({...newStudentData, username: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none font-bold text-slate-800"
+                        placeholder="johndoe123"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Temporary Password</label>
+                      <input 
+                        type="password"
+                        required
+                        value={newStudentData.password}
+                        onChange={e => setNewStudentData({...newStudentData, password: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none font-bold text-slate-800"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="h-px bg-slate-100 my-4" />
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Full Student Name</label>
+                      <input 
+                        type="text"
+                        required
+                        value={newStudentData.name}
+                        onChange={e => setNewStudentData({...newStudentData, name: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 focus:ring-4 focus:ring-zim-green/10 focus:border-zim-green outline-none font-bold text-slate-800"
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Grade Level</label>
+                      <div className="grid grid-cols-7 gap-1">
+                        {[1, 2, 3, 4, 5, 6, 7].map(g => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setNewStudentData({...newStudentData, grade: g})}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all ${newStudentData.grade === g ? 'bg-zim-gold text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {addError && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-bold text-rose-600">
+                      {addError}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-zim-gradient text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? <Loader2 size={20} className="animate-spin" /> : <>
+                      <Plus size={18} />
+                      <span>Create Account</span>
+                    </>}
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </div>
   );

@@ -74,6 +74,15 @@ export const api = {
     });
   },
 
+  awardBonusPoints: async (studentId: number, points: number, reason?: string) => {
+    const res = await fetch(`${API_BASE}/student/${studentId}/award`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ points, reason }),
+    });
+    return await res.json();
+  },
+
   getAiContext: async (subject: string, grade: number): Promise<string> => {
     const res = await fetch(`${API_BASE}/ai/context/${subject}/${grade}`);
     return await res.text();
